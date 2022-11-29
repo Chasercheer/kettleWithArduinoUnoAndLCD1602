@@ -8,7 +8,7 @@ public:
 
   enum { sizeOfArray = 10 };
   //static const int sizeOfArray = 10;//同样可行
-  int eachMenuRowsPointedIndex[sizeOfArray][sizeOfArray];
+  //int eachMenuRowsPointedIndex[3][sizeOfArray];//没必要了
   String menusAndTheirsContent;                              //将所有菜单的内容放进一个String中以节省运行时的内存空间。菜单与菜单之间用菜单索引数字“1，2，3······”隔开，行与行之间用“ ”空格隔开
 //--------------------------------------------------------------------
   String pickALineInMenus(int menuIndex, int menuRowIndex);  //在menusAndTheirsContent选中一个菜单下的某一行并返回该行的值
@@ -50,8 +50,8 @@ class LCD1602{
     LCD1602(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0);
     void showOnLCD(String messageLine1,String messageLine2);
     bool showMenuContentOnLcd(int IndexOfTheMenu,int LineNumOfTheMenu); 
-    void selectedEventsOfMenuContentOnLcd(int (*numberChooseFunc)()); //在按钮按下后调用该函数可触发当前屏幕上第一行所对应的事件。它接受一个无形参且返回int值的数值选择函数作为参数，供其内部调用。
-    void flushMenuContentOnLcd();//动态更新当前屏幕内容，调用一次更新一次
+    //void selectedEventsOfMenuContentOnLcd(int (*numberChooseFunc)()); //在按钮按下后调用该函数可触发当前屏幕上第一行所对应的事件。它接受一个无形参且返回int值的数值选择函数作为参数，供其内部调用--*弃置的方法
+    //void flushMenuContentOnLcd();//动态更新当前屏幕内容，调用一次更新一次--*弃置的方法
     void openLCD();
     void closeLCD();
     void menuScollUp();
@@ -90,13 +90,16 @@ bool LCD1602::showMenuContentOnLcd(int IndexOfTheMenu,int LineNumOfTheMenu){
     return false;
   }
 }
+/*
 void LCD1602::selectedEventsOfMenuContentOnLcd(int (*numberChooseFunc)()){
 
 }
+*/
+/*
 void LCD1602::flushMenuContentOnLcd(){
 
 }
-
+*/
 void LCD1602::openLCD(){
   lcd.display();
 }
@@ -210,8 +213,80 @@ void PushBtns::downEvents(){
   
 }
 void PushBtns::selectEvents(){
-  if(digitalRead(select)==triggeredLevelOfSelect){
- 
+  //Serial.print(digitalRead(select));
+  if(digitalRead(select)==0){
+    //Serial.print(11111);  
+    if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==0){
+      switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
+        case 0:
+          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("aaa","bbb");
+          delay(500);
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);                  
+          break;          
+        case 1:
+          break;
+        case 2:
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        case 5:
+          break;
+        case 6:
+          break;
+        case 7:
+          break;
+        default:
+          break;
+      }      
+    }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==1){
+      switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
+        case 0:
+          break;          
+        case 1:
+          break;
+        case 2:
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        case 5:
+          break;
+        case 6:
+          break;
+        case 7:
+          break;
+        default:
+          break;
+      }      
+    }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==2){
+      switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
+        case 0:
+          break;          
+        case 1:
+          break;
+        case 2:
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        case 5:
+          break;
+        case 6:
+          break;
+        case 7:
+          break;
+        default:
+          break;
+      }      
+    }else{
+      pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen=0;
+      pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen=0;
+    }
+    
   }
 }
 void PushBtns::quitEvents(){
@@ -270,7 +345,6 @@ void setup() {
   "0 SHUTDOWN SINGLEBOIL: CYCLEBOIL: AUTOBOIL: HEATSAVE: HEAT: SET SETSYSTEMTIME \n"//菜单1内容
   "1 SETWATERWEIGHT SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//菜单2内容
   "2 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //菜单3内容
-  
   //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
   
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
@@ -305,6 +379,7 @@ void loop() {
   pushBtns->upEvents();
   pushBtns->downEvents();
   pushBtns->onAndOffEvents();
+  pushBtns->selectEvents();
 }
 
 
