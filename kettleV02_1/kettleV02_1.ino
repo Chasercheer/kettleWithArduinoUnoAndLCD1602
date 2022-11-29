@@ -251,8 +251,8 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   pushBtns = new PushBtns(A0,A1,A2,A3,A4,11,5,4,3,2,6,7,0);
-  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.lcd.begin(16, 2);
-  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
+  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.lcd.begin(16, 2);  
+  
   /*
   //这是一种用多行为String赋值的方式。一旦Arduino不能运用标准C++对于string的多行赋值格式，那么或许这样可行
   allmenus->menusAndTheirsContent = 
@@ -266,6 +266,9 @@ void setup() {
   "2 SETWATERWEIGHT SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//菜单2内容
   "3 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //菜单3内容
   
+  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
+  
+  //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
   /*
   
  
@@ -294,9 +297,9 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(int IndexOfTheMenu, int LineNumOfTheMenu);
-  pushBtns->upEvents();
-  pushBtns->downEvents();
-  pushBtns->onAndOffEvents();
+  //pushBtns->upEvents();
+  //pushBtns->downEvents();
+  //pushBtns->onAndOffEvents();
 }
 
 
