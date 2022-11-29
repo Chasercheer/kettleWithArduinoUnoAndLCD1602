@@ -16,6 +16,7 @@ public:
 
 String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
   String findstr;
+  int rowsNum = -1;
   char cmenuIndex = 48+menuIndex;//48是字符'0'的十进制ASCII码（ASCII码中所有符号对应的值与UTF-8中对应得二进制值是相同的。UTF-8的映射包含了ASCII码的映射）
   char cmenuRowIndex = 48+menuRowIndex;
   if(menusAndTheirsContent.indexOf(cmenuIndex)==-1) return "1";
@@ -24,6 +25,10 @@ String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
   }else{
     findstr = menusAndTheirsContent.substring(menusAndTheirsContent.indexOf(cmenuIndex),menusAndTheirsContent.indexOf(cmenuIndex+1));
   }
+  for(int i = 0;i<findstr.length();i++){//String.length()
+    if(findstr[i]==' ') ++rowsNum;   
+  }
+  if(rowsNum-1<menuRowIndex) return "2";
   // int String::indexOf(char Index),返回字符串中从前往后查找到的第一个Index的位置；String String::substring(int from,int to=String.lenth()+1)，返回一个字符串中从位置from至to的字串。一个String的第一个字符的位置是0.
   for(int i = 0 ;i<menuRowIndex+1;i++){
     findstr.remove(0,findstr.indexOf(' ')+1);//void String::remove(int from,int to)，移除原字符串中从from至to（不包括to）位置之间的字符
@@ -262,13 +267,13 @@ void setup() {
   
   //但很赞的是，Arduino的String类尽管与C++STL的string类有着诸多不同，但多行赋值的语法是相同的。HOORAY！！！
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
-  "1 SHUTDOWN SINGLEBOIL: CYCLEBOIL: AUTOBOIL: HEATSAVE: HEAT: SET SETSYSTEMTIME \n"//菜单1内容
-  "2 SETWATERWEIGHT SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//菜单2内容
-  "3 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //菜单3内容
+  "0 SHUTDOWN SINGLEBOIL: CYCLEBOIL: AUTOBOIL: HEATSAVE: HEAT: SET SETSYSTEMTIME \n"//菜单1内容
+  "1 SETWATERWEIGHT SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//菜单2内容
+  "2 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //菜单3内容
   
-  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
+  //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
   
-  //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
+  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
   /*
   
  
@@ -297,9 +302,9 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(int IndexOfTheMenu, int LineNumOfTheMenu);
-  //pushBtns->upEvents();
-  //pushBtns->downEvents();
-  //pushBtns->onAndOffEvents();
+  pushBtns->upEvents();
+  pushBtns->downEvents();
+  pushBtns->onAndOffEvents();
 }
 
 
