@@ -25,7 +25,7 @@ String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
   }else{
     findstr = menusAndTheirsContent.substring(menusAndTheirsContent.indexOf(cmenuIndex),menusAndTheirsContent.indexOf(cmenuIndex+1));
   }
-  for(int i = 0;i<findstr.length();i++){//String.length()
+  for(int i = 0;i<findstr.length();i++){//string.length()返回string这个字符串中字符的个数。在给string赋值时的C风格字符串结尾隐式包含的\0（空字符）不会被length()计数。
     if(findstr[i]==' ') ++rowsNum;   
   }
   if(rowsNum-1<menuRowIndex) return "2";
