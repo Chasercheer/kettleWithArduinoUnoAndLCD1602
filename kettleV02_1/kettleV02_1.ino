@@ -12,6 +12,7 @@ public:
   String menusAndTheirsContent;                              //将所有菜单的内容放进一个String中以节省运行时的内存空间。菜单与菜单之间用菜单索引数字“1，2，3······”隔开，行与行之间用“ ”空格隔开
 //--------------------------------------------------------------------
   String pickALineInMenus(int menuIndex, int menuRowIndex);  //在menusAndTheirsContent选中一个菜单下的某一行并返回该行的值
+  void ChangeALineInMenus(int menuIndex,int menuRowIndex,String changeLineContent);  
 };
 
 String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
@@ -37,7 +38,13 @@ String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
   return findstr;
 }
 
-
+void AllMenus::ChangeALineInMenus(int menuIndex,int menuRowIndex,String changeLineContent){
+  char cmenuIndex = 48+menuIndex;
+  char cmenuRowIndex = 48+menuRowIndex;
+  if(menusAndTheirsContent.indexOf(cmenuIndex)==-1) return ;
+  //void函数在C++中也是可以使用return的。这里使用return的目的是让函数如果运行到此句则退出该函数。void是一个类型，它的真正意义是：“大小不确定的类型”。既然是大小不确定的类型，那么编译器本着确定才能行动的原则，在面对这个类型时会束手无策，什么也不干。这就体现为void返回值的函数什么也不返回。
+  menusAndTheirsContent.replace(pickALineInMenus(menuIndex,menuRowIndex),changeLineContent);  //string.replace(str1,str2)可将string中的子字符串str1替换为str2的内容。但这样做会将string中的所有str1替换为str2。但在这个项目中，这个行为并不会造成什么影响。
+}
 ////////////////////////////////////////////////////////////////////
 class LCD1602{
   public:
@@ -145,6 +152,7 @@ PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int p
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
+  bool SINGLEBOILFLAG,CYCLEBOILFLAG,ATUOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
   PushBtnsBeTriggeredEvents pushBtnsBeTriggeredEvents;
@@ -160,6 +168,11 @@ class PushBtns{
 };
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+  SINGLEBOILFLAG=false;
+  CYCLEBOILFLAG=false;
+  ATUOBOILFLAG=false;
+  HEATSAVEFLAG=false;
+  HEATFLAG=false;
   this->up=up;//使用this指针可以在方法中使用来自对象的与类形参变量同名的数据成员
   this->down=down;
   this->quit=quit;
@@ -176,6 +189,11 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   digitalWrite(backLight,LOW);
 }
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+  SINGLEBOILFLAG=false;
+  CYCLEBOILFLAG=false;
+  ATUOBOILFLAG=false;
+  HEATSAVEFLAG=false;
+  HEATFLAG=false;
   this->up=up;
   this->down=down;
   this->quit=quit;
@@ -214,30 +232,55 @@ void PushBtns::downEvents(){
 }
 void PushBtns::selectEvents(){
   //Serial.print(digitalRead(select));
-  if(digitalRead(select)==0){
-    //Serial.print(11111);  
+
+  if(digitalRead(select)==triggeredLevelOfSelect){
+    delay(100);//去抖动
+  }  
+  if(digitalRead(select)==triggeredLevelOfSelect){
+    //Serial.print(11111);
     if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==0){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
         case 0:
+        //SHUTDOWN
           pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("aaa","bbb");
+          delay(500);
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,0,"SHUTDOWNSELECT");
           delay(500);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);                  
           break;          
         case 1:
+        //SINGLEBOIL
           break;
         case 2:
+        //CYCLEBOIL
+        if(CYCLEBOILFLAG){
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
+          CYCLEBOILFLAG=false;
+        }else{
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
+          CYCLEBOILFLAG=true;          
+        }
+          
           break;
         case 3:
+        //ATUOBOIL
           break;
         case 4:
+        //HEATSAVE
           break;
         case 5:
+        //HEAT
           break;
         case 6:
+        //SET
           break;
         case 7:
+        //SETSYSTEMTIME
           break;
         default:
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
           break;
       }      
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==1){
@@ -259,6 +302,7 @@ void PushBtns::selectEvents(){
         case 7:
           break;
         default:
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
           break;
       }      
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==2){
@@ -280,6 +324,7 @@ void PushBtns::selectEvents(){
         case 7:
           break;
         default:
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
           break;
       }      
     }else{
@@ -288,6 +333,7 @@ void PushBtns::selectEvents(){
     }
     
   }
+  delay(100);
 }
 void PushBtns::quitEvents(){
   if(digitalRead(quit)==triggeredLevelOfQuit){
@@ -342,7 +388,7 @@ void setup() {
   
   //但很赞的是，Arduino的String类尽管与C++STL的string类有着诸多不同，但多行赋值的语法是相同的。HOORAY！！！
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
-  "0 SHUTDOWN SINGLEBOIL: CYCLEBOIL: AUTOBOIL: HEATSAVE: HEAT: SET SETSYSTEMTIME \n"//菜单1内容
+  "0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off SET SETSYSTEMTIME \n"//菜单1内容
   "1 SETWATERWEIGHT SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//菜单2内容
   "2 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //菜单3内容
   //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
