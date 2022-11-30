@@ -152,7 +152,7 @@ PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int p
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
-  bool SINGLEBOILFLAG,CYCLEBOILFLAG,ATUOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
+  bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
   PushBtnsBeTriggeredEvents pushBtnsBeTriggeredEvents;
@@ -170,7 +170,7 @@ class PushBtns{
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
-  ATUOBOILFLAG=false;
+  AUTOBOILFLAG=false;
   HEATSAVEFLAG=false;
   HEATFLAG=false;
   this->up=up;//使用this指针可以在方法中使用来自对象的与类形参变量同名的数据成员
@@ -191,7 +191,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
-  ATUOBOILFLAG=false;
+  AUTOBOILFLAG=false;
   HEATSAVEFLAG=false;
   HEATFLAG=false;
   this->up=up;
@@ -242,42 +242,92 @@ void PushBtns::selectEvents(){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
         case 0:
         //SHUTDOWN
-          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("aaa","bbb");
-          delay(500);
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,0,"SHUTDOWNSELECT");
-          delay(500);
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:off");
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,5,"HEAT:off");
+          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ALL MODE","SHUTED DOWN");
+          delay(2000);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);                  
           break;          
         case 1:
         //SINGLEBOIL
+          if(SINGLEBOILFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 1); 
+            SINGLEBOILFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 1); 
+            SINGLEBOILFLAG=true;          
+          }
+          
           break;
         case 2:
         //CYCLEBOIL
-        if(CYCLEBOILFLAG){
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
-          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
-          CYCLEBOILFLAG=false;
-        }else{
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
-          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
-          CYCLEBOILFLAG=true;          
-        }
+          if(CYCLEBOILFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
+            CYCLEBOILFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 2); 
+            CYCLEBOILFLAG=true;          
+          }
           
           break;
         case 3:
         //ATUOBOIL
+          if(AUTOBOILFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 3); 
+            AUTOBOILFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 3); 
+            AUTOBOILFLAG=true;          
+          }
           break;
         case 4:
         //HEATSAVE
+          if(HEATSAVEFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 4); 
+            HEATSAVEFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:on");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 4); 
+            HEATSAVEFLAG=true;          
+          }
           break;
         case 5:
-        //HEAT
+        //HEAT，但与上模式不并行
+          if(HEATFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,5,"HEAT:off");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:on");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:on");            
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 5); 
+            HEATFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,5,"HEAT:on");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 5); 
+            HEATFLAG=true;          
+          }
           break;
         case 6:
         //SET
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 0); 
           break;
         case 7:
         //SETSYSTEMTIME
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);
           break;
         default:
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
@@ -337,7 +387,11 @@ void PushBtns::selectEvents(){
 }
 void PushBtns::quitEvents(){
   if(digitalRead(quit)==triggeredLevelOfQuit){
-
+    delay(100);
+  }  
+  if(digitalRead(quit)==triggeredLevelOfQuit){
+    if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen!=0)
+      pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen-1, 0);      
   }
 }
 void PushBtns::onAndOffEvents(){
@@ -426,6 +480,7 @@ void loop() {
   pushBtns->downEvents();
   pushBtns->onAndOffEvents();
   pushBtns->selectEvents();
+  pushBtns->quitEvents();
 }
 
 
