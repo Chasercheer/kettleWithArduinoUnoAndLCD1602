@@ -164,7 +164,7 @@ class PushBtns{
   void selectEvents();
   void quitEvents();
   void onAndOffEvents();
-  int numberChooseFunc();//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面
+  int numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode=-1);//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面。他接受一个初始值，一个步长，一个选择值上限值，一个选择值下限，一个未选择便退出时的标识值作为参数。
 };
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
@@ -414,8 +414,36 @@ void PushBtns::onAndOffEvents(){
     delay(1000);
   }
 }
-int PushBtns::numberChooseFunc(){
-
+int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode){
+  bool numChoosing=true;
+  int choosedNum=start;
+  while(numChoosing){
+    pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("PLEASESELECTNUM：",String(choosedNum));
+    if(digitalRead(up)==triggeredLevelOfUp && choosedNum<=upperlim) delay(100);
+    if(digitalRead(up)==triggeredLevelOfUp && choosedNum<=upperlim){
+      choosedNum++;      
+    }else if(choosedNum>upperlim){
+      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR：","BEYOND LIMMIT");
+      delay(2000);
+    }
+    if(digitalRead(down)==triggeredLevelOfDown && choosedNum<=lowerlim) delay(100);
+    if(digitalRead(up)==triggeredLevelOfDown && choosedNum<=lowerlim){
+      choosedNum--;      
+    }else if(choosedNum<lowerlim){
+      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR：","UNDER LIMMIT");
+      delay(2000);
+    }
+    if(digitalRead(select)==triggeredLevelOfSelect) {
+      numChoosing=false;
+      delay(100);      
+    }
+    if(digitalRead(quit)==triggeredLevelOfQuit){
+      numChoosing=false;
+      choosedNum=quitCode;
+      delay(100);            
+    }
+  }
+  return choosedNum;
 }
 ////////////////////////////////////////////////////////////////////
 class Kettle{
