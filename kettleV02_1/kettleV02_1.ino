@@ -1,3 +1,4 @@
+#include <EEPROM.h>//用以实现向Arduino Uno R3的EEPROM中写入设置数据。这些设置数据不会在Arduino断电后消失，进而可以保证在每次开机时保持之前的设置。UnoR3有1KBytes的EPPROM的容量。一个Bytes是8个bit。这EEPROM大概有100000次的刷写寿命。
 #include <LiquidCrystal.h>
 //#include <ArxContainer.h>
 
@@ -152,6 +153,7 @@ PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int p
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
+  int WaterWeight,
   bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
@@ -336,20 +338,31 @@ void PushBtns::selectEvents(){
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==1){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
         case 0:
+        //SETWATERWEIGHT
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(numberChooseFunc(100,30,50,200))+"g"));
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 0); 
+          
           break;          
         case 1:
+        //SETCYCLEGAPDAY
           break;
         case 2:
+        //SETCYCLECLOCK
           break;
         case 3:
+        //AUTOADDWATERLIM
           break;
         case 4:
+        //SETHEATSAVETEMP
           break;
         case 5:
+        //SETHEATTEMP
           break;
         case 6:
+        //SETBOTTLEWEIGHT
           break;
         case 7:
+        //WATERWIGHT
           break;
         default:
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
@@ -358,18 +371,25 @@ void PushBtns::selectEvents(){
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==2){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
         case 0:
+        //TIME        
           break;          
         case 1:
+        //SETYEAR        
           break;
         case 2:
+        //SETMONTH
           break;
         case 3:
+        //SETDATE
           break;
         case 4:
+        //SETHOUR
           break;
         case 5:
+        //SETMINUTE
           break;
         case 6:
+        //SETSECOND
           break;
         case 7:
           break;
@@ -391,12 +411,14 @@ void PushBtns::quitEvents(){
   }  
   if(digitalRead(quit)==triggeredLevelOfQuit){
     if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen!=0)
-      pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen-1, 0);      
+      pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0); //基于目前的菜单内容，这个简陋的返回函数是可用的     
   }
+  
 }
 void PushBtns::onAndOffEvents(){
-  if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==1) delay(100);//去按钮抖动
-  if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==0) delay(100);
+  if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff) delay(100);
+  //if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==1) delay(100);//去按钮抖动
+  //if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==0) delay(100);
   if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==1){
     //Serial.print(digitalRead(onAndOff));
     Serial.print(onAndOff);    
@@ -415,33 +437,51 @@ void PushBtns::onAndOffEvents(){
   }
 }
 int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode){
-  bool numChoosing=true;
-  int choosedNum=start;
+  bool numChoosing=true,singleSelectFlag=true;//在同一行中定义声明多个变量并初始化
+  int choosedNum=start,lastChoosedNum=start;
+  pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("PLEASESELECTNUM:",String(choosedNum));
   while(numChoosing){
-    pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("PLEASESELECTNUM：",String(choosedNum));
-    if(digitalRead(up)==triggeredLevelOfUp && choosedNum<=upperlim) delay(100);
+    if(choosedNum!=lastChoosedNum){
+      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("PLEASESELECTNUM:",String(choosedNum));
+      lastChoosedNum=choosedNum;
+    }
+    //delay(100);
+    
+    if(digitalRead(up)==triggeredLevelOfUp && choosedNum<=upperlim) delay(200);
     if(digitalRead(up)==triggeredLevelOfUp && choosedNum<=upperlim){
-      choosedNum++;      
+      choosedNum+=step;      
     }else if(choosedNum>upperlim){
-      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR：","BEYOND LIMMIT");
+      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR:","BEYOND LIMMIT");
+      choosedNum=start;
       delay(2000);
     }
-    if(digitalRead(down)==triggeredLevelOfDown && choosedNum<=lowerlim) delay(100);
-    if(digitalRead(up)==triggeredLevelOfDown && choosedNum<=lowerlim){
-      choosedNum--;      
+    
+    if(digitalRead(down)==triggeredLevelOfDown && choosedNum>=lowerlim) delay(200);
+    if(digitalRead(down)==triggeredLevelOfDown && choosedNum>=lowerlim){
+      choosedNum-=step;      
     }else if(choosedNum<lowerlim){
-      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR：","UNDER LIMMIT");
+      pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ERROR:","UNDER LIMMIT");
+      choosedNum=start;
       delay(2000);
     }
-    if(digitalRead(select)==triggeredLevelOfSelect) {
-      numChoosing=false;
+    
+    if(digitalRead(select)==triggeredLevelOfSelect) { //去按键抖动
       delay(100);      
+    }    
+    if(digitalRead(select)==triggeredLevelOfSelect && singleSelectFlag) {//这一段可以确保进入数值选择页面时的SELECT按键不会紧接着触发确定数值选择从而秒退页面，也就是说必须再次按下SELECT这个页面才会选择数值并退出。但上面的数值的上下选择就不需要这么复杂的解决方案。
+      delay(100);      
+    }else if (digitalRead(select) != triggeredLevelOfSelect && singleSelectFlag){
+      singleSelectFlag=false;      
+    }else if(digitalRead(select)==triggeredLevelOfSelect){
+      numChoosing=false;
     }
+
     if(digitalRead(quit)==triggeredLevelOfQuit){
       numChoosing=false;
       choosedNum=quitCode;
       delay(100);            
     }
+
   }
   return choosedNum;
 }
