@@ -143,7 +143,7 @@ void LCD1602::menuScollDown(){
 class PushBtnsBeTriggeredEvents{
   public:
     LCD1602 lcd1602;
-    Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间
+    Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间。值得注意的是，这个结构体内的数据成员的类型为uint_8，意为八位无符号整数，即这些数据成员的取值范围为0-255。用int为其赋值时可能会溢出。
     Ds1302 ds1302;
     void setTime();   
     void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
@@ -416,27 +416,30 @@ void PushBtns::selectEvents(){
       }      
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==2){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
-        /*
+        
         case 0:
         //CHECKTIME
         
-          String line1=String(String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day));
-          String line2=String(String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second));
-          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(line1,line2);
+          //String line1=String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day);
+          //String line2=String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second);
+          //pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(line1,line2);     
+          //也许是因为创建两个临时的String对象对于UNO来讲太过于勉强，抑或是Arduino尚未完善switch中非匿名临时对象的析构或构造，上述语句将使得后续的case无法被触发。但下面这句就可以正常运行     
+          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(String("20"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day)),String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second));
           delay(2000);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);                  
           break;
-        */         
+                 
         case 1:
         //SETYEAR
-          pushBtnsBeTriggeredEvents.setTimeBuffer.year=numberChooseFunc(2025,1,2000,2099);
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,1,String("SETYEAR:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)));
+        //pushBtnsBeTriggeredEvents.setTimeBuffer.year=-1;//由于year的类型为uint_8(用八个比特储存的无符号整数类型)，所以它的取值范围为0-255，这样做只会使其值为255。
+          pushBtnsBeTriggeredEvents.setTimeBuffer.year=numberChooseFunc(25,1,0,99);
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,1,String("SETYEAR:20"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 1);       
           break;
         case 2:
         //SETMONTH
           pushBtnsBeTriggeredEvents.setTimeBuffer.month=numberChooseFunc(6,1,1,12);
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,2,String("SETMONTH:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,2,String("SETMONTH:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 2);       
           break;
         case 3:
