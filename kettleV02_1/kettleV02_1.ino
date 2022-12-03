@@ -1,3 +1,4 @@
+#include <Ds1302.h>//时钟芯片DS1302
 #include <EEPROM.h>//用以实现向Arduino Uno R3的EEPROM中写入设置数据。这些设置数据不会在Arduino断电后消失，进而可以保证在每次开机时保持之前的设置。UnoR3有1KBytes的EPPROM的容量。一个Bytes是8个bit。这EEPROM大概有100000次的刷写寿命。
 #include <LiquidCrystal.h>
 //#include <ArxContainer.h>
@@ -142,16 +143,33 @@ void LCD1602::menuScollDown(){
 class PushBtnsBeTriggeredEvents{
   public:
     LCD1602 lcd1602;
-    PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0);
-    PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0);
+    Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间
+    Ds1302 ds1302;
+    void getTime();
+    void setTime(int year,int month,int day,int hour,int min,int sec);    
+    PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
+    PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
 };
 
-PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
 
 }
 
-PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):lcd1602(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
 
+}
+void PushBtnsBeTriggeredEvents::setTime(int year,int month,int day,int hour,int min,int sec,int dow){//dow=day of week，该值不能大于7（星期日的枚举值）
+  setTimeBuffer.year=year;
+  setTimeBuffer.month=mouth;
+  setTimeBuffer.day=day;
+  setTimeBuffer.hour=hour;
+  setTimeBuffer.minute=min;
+  setTimeBuffer.second=sec;
+  setTimeBuffer.dow=dow;
+  ds1302.setDateTime(&timeBuffer);
+}
+void PushBtnsBeTriggeredEvents::getTime(){
+  ds1302.getDateTime(&getTimeBuffer);  
 }
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
@@ -162,8 +180,8 @@ class PushBtns{
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
   PushBtnsBeTriggeredEvents pushBtnsBeTriggeredEvents;
   //-------------------------------------------------//
-  PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0);
-  PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0);  
+  PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
+  PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);  
   void upEvents();
   void downEvents();
   void selectEvents();
@@ -172,10 +190,15 @@ class PushBtns{
   int numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode=-1);//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面。他接受一个初始值，一个步长，一个选择值上限值，一个选择值下限，一个未选择便退出时的标识值作为参数。
 };
 
-PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinClkEn,pinClkClk,pinClkDat,pinRW=0){
   //waterWeight=EEPROM.read(0);//读取处于EEPROM中位置为0的数据。EEPROM中的位置是EEPROM中的地址的简化：一个位置代表这个内存中一个byte大小的内存区域，即相邻的8个bit所构成的一个储存区域。read可以读取该位置储存的一个字节；write则可以在该位置写入一个字节。但int值在Arduino中占两个字节，则如果将一个大于255的int或float值存入一个Btye位中将导致Arduino程序崩溃。
   EEPROM.get(0,waterWeight);//但是使用get()则可以在指定的位置作为起始，获得与实参2相同类型的的数据，这实参2的类型不作限制；并将数据存入传递的实参2内。同理，使用put(pos,val)函数可以将任意类型的val存入以int值pos为开始位置的相应大小的储存区域中，val不一定只用一个1个储存位置储存，可能是以pos为起始的，以及其后的多个位置作为其储存区域
   EEPROM.get(2,cycleGapDay);//int占两个byte，所以会占用两个位置进行储存。所以，不能将上一个储存位置值加1来储存这个int值，而是需要加2。可用sizeof()判断其类型大小。
+  EEPROM.get(4,cycleClock);
+  EEPROM.get(6,addWaterLim);
+  EEPROM.get(8,heatSaveTemp);
+  EEPROM.get(10,heatTemp);
+  EEPROM.get(12,bottleWeight);
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
   AUTOBOILFLAG=false;
@@ -196,9 +219,14 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   pinMode(backLight,OUTPUT);
   digitalWrite(backLight,LOW);
 }
-PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW=0){
+PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinClkEn,pinClkClk,pinClkDat,pinRW){
   EEPROM.get(0,waterWeight);
   EEPROM.get(2,cycleGapDay);
+  EEPROM.get(4,cycleClock);
+  EEPROM.get(6,addWaterLim);
+  EEPROM.get(8,heatSaveTemp);
+  EEPROM.get(10,heatTemp);
+  EEPROM.get(12,bottleWeight);
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
   AUTOBOILFLAG=false;
@@ -387,7 +415,8 @@ void PushBtns::selectEvents(){
         //TIME        
           break;          
         case 1:
-        //SETYEAR        
+        //SETYEAR
+
           break;
         case 2:
         //SETMONTH
@@ -511,7 +540,7 @@ PushBtns *pushBtns;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  pushBtns = new PushBtns(A0,A1,A2,A3,A4,11,5,4,3,2,6,7,0);
+  pushBtns = new PushBtns(A0,A1,A2,A3,A4,8,5,4,3,2,6,7,11,9,10,0);
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.lcd.begin(16, 2);  
   
   /*
@@ -525,7 +554,7 @@ void setup() {
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
   "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off SET SETSYSTEMTIME \n"//原始菜单1内容
   "*1 SETWATERW: SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//原始菜单2内容
-  "*2 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND";  //原始菜单3内容
+  "*2 TIME SETYEAR SETMONTH SETDATE SETHOUR SETMINUTE SETSECOND APPLYCHANGE";  //原始菜单3内容
 
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(pushBtns->waterWeight)+"g"));//由于设置项中的一些数据是储存在EEPROM中的，所以此时把它们读取并加载出来以还原上次关机时的菜单设置
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,1,String("GAPDAY:"+String(pushBtns->cycleGapDay)+"DS"));
@@ -554,7 +583,7 @@ void setup() {
 
   
 */
-
+  Serial.print(EEPROM[50]);
 }
 
 void loop() {
