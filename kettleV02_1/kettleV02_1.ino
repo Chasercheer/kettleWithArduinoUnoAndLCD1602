@@ -20,18 +20,20 @@ public:
 String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
   String findstr;
   int rowsNum = -1;
-  char cmenuIndex = 48+menuIndex;//48是字符'0'的十进制ASCII码（ASCII码中所有符号对应的值与UTF-8中对应得二进制值是相同的。UTF-8的映射包含了ASCII码的映射）
   char cmenuRowIndex = 48+menuRowIndex;
+   //char cmenuIndex =48 + menuIndex;//48是字符'0'的十进制ASCII码（ASCII码中所有符号对应的值与UTF-8中对应得二进制值是相同的。UTF-8的映射包含了ASCII码的映射）---*弃置的目录索引
+  String cmenuIndex = '*'+String(menuIndex);  //之前的菜单索引的缺陷在于，它是纯数字的，这导致如果当后续修改原菜单内容时向其中增加一些非索引的内容性的数字的时候，将可能引发菜单索引查找的错误。新的菜单目录索引号用“*+数字”的组合，从而避免了这个问题
+  String nextCmenuIndex = '*'+String(menuIndex+1);
   if(menusAndTheirsContent.indexOf(cmenuIndex)==-1) return "1";
-  if(menusAndTheirsContent.indexOf(cmenuIndex+1)==-1){
+  if(menusAndTheirsContent.indexOf(nextCmenuIndex)==-1){
     findstr = menusAndTheirsContent.substring(menusAndTheirsContent.indexOf(cmenuIndex));
   }else{
-    findstr = menusAndTheirsContent.substring(menusAndTheirsContent.indexOf(cmenuIndex),menusAndTheirsContent.indexOf(cmenuIndex+1));
+    findstr = menusAndTheirsContent.substring(menusAndTheirsContent.indexOf(cmenuIndex),menusAndTheirsContent.indexOf(nextCmenuIndex));
   }
   for(int i = 0;i<findstr.length();i++){//string.length()返回string这个字符串中字符的个数。在给string赋值时的C风格字符串结尾隐式包含的\0（空字符）不会被length()计数。
     if(findstr[i]==' ') ++rowsNum;   
   }
-  if(rowsNum-1<menuRowIndex) return "2";
+  if(rowsNum-1<menuRowIndex) return "2";//对传入的超过现菜单最大行索引数的行索引参数，在这一步便予以处理
   // int String::indexOf(char Index),返回字符串中从前往后查找到的第一个Index的位置；String String::substring(int from,int to=String.lenth()+1)，返回一个字符串中从位置from至to的字串。一个String的第一个字符的位置是0.
   for(int i = 0 ;i<menuRowIndex+1;i++){
     findstr.remove(0,findstr.indexOf(' ')+1);//void String::remove(int from,int to)，移除原字符串中从from至to（不包括to）位置之间的字符
@@ -133,6 +135,7 @@ void LCD1602::menuScollDown(){
   }else{
       firstLineNumOfCurrentScreen++;
       showMenuContentOnLcd(menuIndexOfCurrentScreen,firstLineNumOfCurrentScreen);
+      Serial.print(firstLineNumOfCurrentScreen);
   }  
 }
 
@@ -142,9 +145,9 @@ class PushBtnsBeTriggeredEvents{
     LCD1602 lcd1602;
     Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间
     Ds1302 ds1302;
-    void getTime();
     void setTime();   
     void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
+    void getTime();
     PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
     PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
 };
@@ -175,7 +178,7 @@ void PushBtnsBeTriggeredEvents::getTime(){
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
-  int waterWeight,cycleGapDay,cycleClock,addWaterLim,heatSaveTemp,heatTemp,bottleWeight;
+  int waterWeight,cycleGapDay,cycleClock,addWaterLim,heatSaveTemp,heatTemp,bottleWeight;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
   bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
@@ -193,7 +196,7 @@ class PushBtns{
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW):pushBtnsBeTriggeredEvents(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinClkEn,pinClkClk,pinClkDat,pinRW=0){
   //waterWeight=EEPROM.read(0);//读取处于EEPROM中位置为0的数据。EEPROM中的位置是EEPROM中的地址的简化：一个位置代表这个内存中一个byte大小的内存区域，即相邻的8个bit所构成的一个储存区域。read可以读取该位置储存的一个字节；write则可以在该位置写入一个字节。但int值在Arduino中占两个字节，则如果将一个大于255的int或float值存入一个Btye位中将导致Arduino程序崩溃。
-  EEPROM.get(0,waterWeight);//但是使用get()则可以在指定的位置作为起始，获得与实参2相同类型的的数据，这实参2的类型不作限制；并将数据存入传递的实参2内。同理，使用put(pos,val)函数可以将任意类型的val存入以int值pos为开始位置的相应大小的储存区域中，val不一定只用一个1个储存位置储存，可能是以pos为起始的，以及其后的多个位置作为其储存区域
+  EEPROM.get(0,waterWeight);//但是使用get()则可以在指定的位置作为起始，获得与实参2相同类型的的数据，这实参2的类型不作限制；并将数据存入传递的实参2内。同理，使用put(pos,val)函数可以将任意类型的val存入以int值pos为开始位置的相应大小的储存区域中，val不一定只用一个1个储存位置储存，可能是以pos为起始的，以及其后的多个位置作为其储存区域。另外，当一个位置未被储存数据时，其默认十进制值为255。
   EEPROM.get(2,cycleGapDay);//int占两个byte，所以会占用两个位置进行储存。所以，不能将上一个储存位置值加1来储存这个int值，而是需要加2。可用sizeof()判断其类型大小。
   EEPROM.get(4,cycleClock);
   EEPROM.get(6,addWaterLim);
@@ -377,12 +380,17 @@ void PushBtns::selectEvents(){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
         case 0:
         //SETWATERWEIGHT
-          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(numberChooseFunc(100,30,50,200))+"g"));
+          waterWeight=numberChooseFunc(100,30,50,200);     
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(waterWeight)+"g"));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 0); 
-          
+          EEPROM.put(0,waterWeight);//将waterWeight写入EEPROM中 
           break;          
         case 1:
         //SETCYCLEGAPDAY
+          cycleGapDay=numberChooseFunc(0,1,0,30); 
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,1,String("SETWATERW:"+String(cycleGapDay)+"DS"));
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 1); 
+          EEPROM.put(2,cycleGapDay);
           break;
         case 2:
         //SETCYCLECLOCK
@@ -408,9 +416,17 @@ void PushBtns::selectEvents(){
       }      
     }else if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen==2){
       switch(pushBtnsBeTriggeredEvents.lcd1602.firstLineNumOfCurrentScreen){
+        /*
         case 0:
-        //TIME        
-          break;          
+        //CHECKTIME
+        
+          String line1=String(String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day));
+          String line2=String(String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second));
+          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(line1,line2);
+          delay(2000);
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);                  
+          break;
+        */         
         case 1:
         //SETYEAR
           pushBtnsBeTriggeredEvents.setTimeBuffer.year=numberChooseFunc(2025,1,2000,2099);
@@ -460,6 +476,7 @@ void PushBtns::selectEvents(){
           delay(1000);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 8);             
           break;
+          
         default:
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
           break;
@@ -579,7 +596,7 @@ void setup() {
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
   "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off SET SETSYSTEMTIME \n"//原始菜单1内容
   "*1 SETWATERW: SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//原始菜单2内容
-  "*2 TIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE";  //原始菜单3内容
+  "*2 CHECKTIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE";  //原始菜单3内容
 
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(pushBtns->waterWeight)+"g"));//由于设置项中的一些数据是储存在EEPROM中的，所以此时把它们读取并加载出来以还原上次关机时的菜单设置
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,1,String("GAPDAY:"+String(pushBtns->cycleGapDay)+"DS"));
@@ -609,7 +626,7 @@ void setup() {
 
   
 */
-  Serial.print(EEPROM[50]);
+  //Serial.print(EEPROM[50]);
 }
 
 void loop() {
