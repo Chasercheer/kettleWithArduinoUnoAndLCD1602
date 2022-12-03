@@ -146,22 +146,40 @@ class PushBtnsBeTriggeredEvents{
     Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间。值得注意的是，这个结构体内的数据成员的类型为uint_8，意为八位无符号整数，即这些数据成员的取值范围为0-255。用int为其赋值时可能会溢出。
     Ds1302 ds1302;
     void setTime();   
-    void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
+    void setTime(int year,int month,int day,int hour,int min,int sec,int dow);//弃置的函数
     void getTime();
     PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
     PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
 };
 
 PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
-
+  ds1302.init();//启用ds1302对象。否则开发板不会通过这个对象与时钟芯片进行通讯。
+  getTime();
+  setTimeBuffer.year=getTimeBuffer.year;
+  setTimeBuffer.month=getTimeBuffer.month;
+  setTimeBuffer.day=getTimeBuffer.day;
+  setTimeBuffer.hour=getTimeBuffer.hour;
+  setTimeBuffer.minute=getTimeBuffer.minute;
+  setTimeBuffer.second=getTimeBuffer.second;
+  setTimeBuffer.dow=getTimeBuffer.dow;  
 }
 
 PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
-
+  ds1302.init();
+  getTime();
+  setTimeBuffer.year=getTimeBuffer.year;
+  setTimeBuffer.month=getTimeBuffer.month;
+  setTimeBuffer.day=getTimeBuffer.day;
+  setTimeBuffer.hour=getTimeBuffer.hour;
+  setTimeBuffer.minute=getTimeBuffer.minute;
+  setTimeBuffer.second=getTimeBuffer.second;
+  setTimeBuffer.dow=getTimeBuffer.dow; 
 }
+
 void PushBtnsBeTriggeredEvents::setTime(){
   ds1302.setDateTime(&setTimeBuffer);
 }
+
 void PushBtnsBeTriggeredEvents::setTime(int year,int month,int day,int hour,int min,int sec,int dow){//dow=day of week，该值不能大于7（星期日的枚举值）
   setTimeBuffer.year=year;
   setTimeBuffer.month=month;
@@ -172,9 +190,14 @@ void PushBtnsBeTriggeredEvents::setTime(int year,int month,int day,int hour,int 
   setTimeBuffer.dow=dow;
   ds1302.setDateTime(&setTimeBuffer);
 }
+
 void PushBtnsBeTriggeredEvents::getTime(){
   ds1302.getDateTime(&getTimeBuffer);  
 }
+
+
+
+
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
@@ -369,7 +392,23 @@ void PushBtns::selectEvents(){
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 0); 
           break;
         case 7:
-        //SETSYSTEMTIME
+        //SETSYSTEMTIME->进入时间选择页面
+          pushBtnsBeTriggeredEvents.getTime();
+          pushBtnsBeTriggeredEvents.setTimeBuffer.year=pushBtnsBeTriggeredEvents.getTimeBuffer.year;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.month=pushBtnsBeTriggeredEvents.getTimeBuffer.month;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.day=pushBtnsBeTriggeredEvents.getTimeBuffer.day;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.hour=pushBtnsBeTriggeredEvents.getTimeBuffer.hour;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.minute=pushBtnsBeTriggeredEvents.getTimeBuffer.minute;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.second=pushBtnsBeTriggeredEvents.getTimeBuffer.second;
+          pushBtnsBeTriggeredEvents.setTimeBuffer.dow=pushBtnsBeTriggeredEvents.getTimeBuffer.dow; 
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,1,String("SETYEAR:20"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,2,String("SETMONTH:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,3,String("SETDATE:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,4,String("SETHOUR:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,5,String("SETMINUTE:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,6,String("SETSECOND:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second)));
+          pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,7,String("SETWEEKDAY:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.dow)));
+          //以上代码可以在进入时间选择页面的时候动态地刷新一下该页面
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);
           break;
         default:
@@ -419,12 +458,13 @@ void PushBtns::selectEvents(){
         
         case 0:
         //CHECKTIME
-        
+          pushBtnsBeTriggeredEvents.getTime();          
+          //pushBtnsBeTriggeredEvents.ds1302.getDateTime(&pushBtnsBeTriggeredEvents.getTimeBuffer);
           //String line1=String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day);
           //String line2=String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second);
           //pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(line1,line2);     
           //也许是因为创建两个临时的String对象对于UNO来讲太过于勉强，抑或是Arduino尚未完善switch中非匿名临时对象的析构或构造，上述语句将使得后续的case无法被触发。但下面这句就可以正常运行     
-          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(String("20"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day)),String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second));
+          pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(String("20"+String(pushBtnsBeTriggeredEvents.getTimeBuffer.year)+'-'+String(pushBtnsBeTriggeredEvents.getTimeBuffer.month)+'-'+String(pushBtnsBeTriggeredEvents.getTimeBuffer.day)),String(pushBtnsBeTriggeredEvents.getTimeBuffer.hour)+'-'+String(pushBtnsBeTriggeredEvents.getTimeBuffer.minute)+'-'+String(pushBtnsBeTriggeredEvents.getTimeBuffer.second)+'-'+String(pushBtnsBeTriggeredEvents.getTimeBuffer.dow));
           delay(2000);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);                  
           break;
@@ -432,52 +472,61 @@ void PushBtns::selectEvents(){
         case 1:
         //SETYEAR
         //pushBtnsBeTriggeredEvents.setTimeBuffer.year=-1;//由于year的类型为uint_8(用八个比特储存的无符号整数类型)，所以它的取值范围为0-255，这样做只会使其值为255。
-          pushBtnsBeTriggeredEvents.setTimeBuffer.year=numberChooseFunc(25,1,0,99);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.year=numberChooseFunc(25,1,0,99,25);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,1,String("SETYEAR:20"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.year)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 1);       
           break;
         case 2:
         //SETMONTH
-          pushBtnsBeTriggeredEvents.setTimeBuffer.month=numberChooseFunc(6,1,1,12);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.month=numberChooseFunc(6,1,1,12,6);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,2,String("SETMONTH:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.month)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 2);       
           break;
         case 3:
         //SETDATE
-          pushBtnsBeTriggeredEvents.setTimeBuffer.day=numberChooseFunc(15,1,1,31);
+          if(pushBtnsBeTriggeredEvents.setTimeBuffer.month==1 || pushBtnsBeTriggeredEvents.setTimeBuffer.month==3 ||pushBtnsBeTriggeredEvents.setTimeBuffer.month==5||pushBtnsBeTriggeredEvents.setTimeBuffer.month==7||pushBtnsBeTriggeredEvents.setTimeBuffer.month==8||pushBtnsBeTriggeredEvents.setTimeBuffer.month==10||pushBtnsBeTriggeredEvents.setTimeBuffer.month==12){
+            pushBtnsBeTriggeredEvents.setTimeBuffer.day=numberChooseFunc(15,1,1,31,15);
+          }else if (pushBtnsBeTriggeredEvents.setTimeBuffer.month==2 && (pushBtnsBeTriggeredEvents.setTimeBuffer.year+2000)%4==0){//由于将设定日期限制在了2000-2099年，所以计算闰年时不需要考虑它是否能被100整除（不是则是闰年，是则再除以400）以及能被100整除后是否能被400整除（若是则为闰年，若不能被400整除则不是闰年）了；在这个时间范围内能被4整除的都是闰年
+            pushBtnsBeTriggeredEvents.setTimeBuffer.day=numberChooseFunc(15,1,1,29,15);
+          }else if (pushBtnsBeTriggeredEvents.setTimeBuffer.month==2){
+            pushBtnsBeTriggeredEvents.setTimeBuffer.day=numberChooseFunc(15,1,1,28,15);
+          }else{
+            pushBtnsBeTriggeredEvents.setTimeBuffer.day=numberChooseFunc(15,1,1,30,15);              
+          }
+          //以上结合闰年判断了当前选择的月份为最多为多少天
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,3,String("SETDATE:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.day)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 3);
           break;
         case 4:
         //SETHOUR
-          pushBtnsBeTriggeredEvents.setTimeBuffer.hour=numberChooseFunc(12,1,1,24);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.hour=numberChooseFunc(12,1,0,23,12);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,4,String("SETHOUR:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.hour)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 4);
           break;
         case 5:
         //SETMINUTE
-          pushBtnsBeTriggeredEvents.setTimeBuffer.minute=numberChooseFunc(30,1,1,59);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.minute=numberChooseFunc(30,1,1,59,30);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,5,String("SETMINUTE:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.minute)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 5);
           break;
         case 6:
         //SETSECOND
-          pushBtnsBeTriggeredEvents.setTimeBuffer.second=numberChooseFunc(30,1,1,59);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.second=numberChooseFunc(30,1,1,59,30);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,6,String("SETSECOND:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.second)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 6);
           break;
         case 7:
         //SETWEEKDAY
-          pushBtnsBeTriggeredEvents.setTimeBuffer.dow=numberChooseFunc(3,1,1,7);
+          pushBtnsBeTriggeredEvents.setTimeBuffer.dow=numberChooseFunc(3,1,1,7,3);
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(2,7,String("SETWEEKDAY:"+String(pushBtnsBeTriggeredEvents.setTimeBuffer.dow)));
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 7);
           break;
         case 8:
-        //APPLYCHANGE
+        //APPLYCHANGE     
           pushBtnsBeTriggeredEvents.setTime();
           pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("CHANGES","APPLIED");
           delay(1000);
-          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 8);             
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(2, 0);             
           break;
           
         default:
@@ -599,7 +648,7 @@ void setup() {
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
   "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off SET SETSYSTEMTIME \n"//原始菜单1内容
   "*1 SETWATERW: SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//原始菜单2内容
-  "*2 CHECKTIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE";  //原始菜单3内容
+  "*2 CHECKTIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE ";  //原始菜单3内容。作为最后一行，结尾需要加空格。否则最后一个菜单的最后一行无法被加载。
 
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(pushBtns->waterWeight)+"g"));//由于设置项中的一些数据是储存在EEPROM中的，所以此时把它们读取并加载出来以还原上次关机时的菜单设置
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(1,1,String("GAPDAY:"+String(pushBtns->cycleGapDay)+"DS"));
@@ -630,6 +679,8 @@ void setup() {
   
 */
   //Serial.print(EEPROM[50]);
+  
+  //pushBtns->pushBtnsBeTriggeredEvents.ds1302.getDateTime(&pushBtns->pushBtnsBeTriggeredEvents.getTimeBuffer);
 }
 
 void loop() {
@@ -640,6 +691,7 @@ void loop() {
   pushBtns->onAndOffEvents();
   pushBtns->selectEvents();
   pushBtns->quitEvents();
+  //Serial.print(pushBtns->pushBtnsBeTriggeredEvents.getTimeBuffer.second);
 }
 
 
