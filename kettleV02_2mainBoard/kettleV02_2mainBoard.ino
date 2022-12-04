@@ -2,7 +2,8 @@
 #include <EEPROM.h>//用以实现向Arduino Uno R3的EEPROM中写入设置数据。这些设置数据不会在Arduino断电后消失，进而可以保证在每次开机时保持之前的设置。UnoR3有1KBytes的EPPROM的容量。一个Bytes是8个bit。这EEPROM大概有100000次的刷写寿命。
 #include <LiquidCrystal.h>
 //#include <ArxContainer.h>
-
+//使用HardwareSerial类中的Serial系列方式，在UNO的TXRX口上进行UART（异步串行通讯接口，一般称为“串口”）通讯。主板与副班之间的Serial通讯代码的实现与一个板子同计算机的通讯类似，皆使用Serial的系列方法。
+//主板与副板之间的通讯一共有四个函数：1，来自主板的开始/停止烧水指令；2，来自主板的开始/停止加水指令；3,来自主板的开始/停止风扇指令；4，来自副板的重量反馈以及来自副板的温度反馈。来自主板的指令信号使用单个char字符表示；来自副板的每一条反馈数据均使用一个特定char‘@’字符结尾，前跟一个要传输的float型数据。
 
 ////////////////////////////////////////////////////////////////////
 class AllMenus {
@@ -145,11 +146,14 @@ class PushBtnsBeTriggeredEvents{
     LCD1602 lcd1602;
     Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间。值得注意的是，这个结构体内的数据成员的类型为uint_8，意为八位无符号整数，即这些数据成员的取值范围为0-255。用int为其赋值时可能会溢出。
     Ds1302 ds1302;
+    PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
+    PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
     void setTime();   
     void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
     void getTime();
-    PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
-    PushBtnsBeTriggeredEvents(int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
+    void startOrStopBoilWater(bool flag);
+    void startOrStopAddWater(bool flag);
+    void startOrStopFan(bool flag);
 };
 
 PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
@@ -195,8 +199,37 @@ void PushBtnsBeTriggeredEvents::getTime(){
   ds1302.getDateTime(&getTimeBuffer);  
 }
 
+void PushBtnsBeTriggeredEvents::startOrStopBoilWater(bool flag){
+  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
 
+  }
+  if(flag){
+    Serial.write('A');
+  }else{
+    Serial.write('B');
+  }
+}
+void PushBtnsBeTriggeredEvents::startOrStopAddWater(bool flag){
+  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
 
+  }
+  if(flag){
+    Serial.write('C');
+  }else{
+    Serial.write('D');
+  }
+}
+
+void PushBtnsBeTriggeredEvents::startOrStopFan(bool flag){
+  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
+
+  }
+  if(flag){
+    Serial.write('E');
+  }else{
+    Serial.write('F');
+  }
+}
 
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
@@ -249,8 +282,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinClkEn,pinClkClk,pinClkDat,pinRW){
   EEPROM.get(0,waterWeight);
-  EEPROM.get(2,
-  cycleGapDay);
+  EEPROM.get(2,cycleGapDay);
   EEPROM.get(4,cycleClock);
   EEPROM.get(6,addWaterLim);
   EEPROM.get(8,heatSaveTemp);
@@ -315,7 +347,8 @@ void PushBtns::selectEvents(){
           pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,5,"HEAT:off");
           pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ALL MODE","SHUTED DOWN");
           delay(2000);
-          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);                  
+          pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
+          Serial.print('s');                  
           break;          
         case 1:
         //SINGLEBOIL
@@ -558,7 +591,7 @@ void PushBtns::onAndOffEvents(){
   //if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==0) delay(100);
   if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==1){
     //Serial.print(digitalRead(onAndOff));
-    Serial.print(onAndOff);    
+    //Serial.print(onAndOff);    
     pushBtnsBeTriggeredEvents.lcd1602.lcd.noDisplay();//noDisplay函数只能使LCD不再显示文字，但背光不会熄灭
     onAndOffFlag = 0;
     digitalWrite(backLight,HIGH);//所以用此熄灭背光
@@ -566,7 +599,7 @@ void PushBtns::onAndOffEvents(){
   }
   else if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==0){
     //Serial.print(digitalRead(onAndOff));
-    Serial.print(onAndOff);
+    //Serial.print(onAndOff);
     pushBtnsBeTriggeredEvents.lcd1602.lcd.display();
     onAndOffFlag = 1;
     digitalWrite(backLight,LOW);
@@ -658,31 +691,7 @@ void setup() {
   //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showOnLCD(pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,0),pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.pickALineInMenus(1,1));
   
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);  
-  /*
-  
- 
-  Serial.begin(9600);
-  //-----------------------------------菜单1装载------------------------------
-  String menu1content[10]={"SHUTDOWN","SINGLEBOIL:","CYCLEBOIL:","AUTOBOIL:","HEATSAVE:","HEAT:","SET","SETSYSTEMTIME"," "," "};
-  int menu1rowIndex[10] = {0,1,2,3,4,5,6,7,8,9};
-  pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.creatAMenu(0, menu1content, menu1rowIndex);
-  //-----------------------------------菜单1装载------------------------------
-  //-----------------------------------菜单2装载------------------------------
-  //String menu2content[10]={"SETWATERWEIGHT","SETCYCLEGAPDAY","SETCYCLECLOCK","AUTOADDWATERLIM","SETHEATSAVETEMP","SETHEATTEMP","SETBOTTLEWEIGHT","WATERWIGHT:"," "," "};
-  //int menu2rowIndex[10] = {0,1,2,3,4,5,6,7,8,9};
-  //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.creatAMenu(1, menu2content, menu2rowIndex);
-  //-----------------------------------菜单2装载------------------------------
-  //-----------------------------------菜单3装载------------------------------
-  //String menu3content[10]={"TIME","SETYEAR","SETMONTH","SETDATE","SETHOUR","SETMINUTE","SETSECOND"," "," "," "};
-  //int menu3rowIndex[10] = {0,1,2,3,4,5,6,7,8,9};
-  //pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.creatAMenu(2, menu3content, menu3rowIndex);
-  //-----------------------------------菜单3装载------------------------------
 
-  
-*/
-  //Serial.print(EEPROM[50]);
-  
-  //pushBtns->pushBtnsBeTriggeredEvents.ds1302.getDateTime(&pushBtns->pushBtnsBeTriggeredEvents.getTimeBuffer);
 }
 
 void loop() {
