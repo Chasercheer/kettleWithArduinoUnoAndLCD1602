@@ -3,7 +3,9 @@
 #include <LiquidCrystal.h>
 //#include <ArxContainer.h>
 //使用HardwareSerial类中的Serial系列方式，在UNO的TXRX口上进行UART（异步串行通讯接口，一般称为“串口”）通讯。主板与副班之间的Serial通讯代码的实现与一个板子同计算机的通讯类似，皆使用Serial的系列方法。
-//主板与副板之间的通讯一共有四个函数：1，来自主板的开始/停止烧水指令；2，来自主板的开始/停止加水指令；3,来自主板的开始/停止风扇指令；4，来自副板的重量反馈以及来自副板的温度反馈。来自主板的指令信号使用单个char字符表示；来自副板的每一条反馈数据均使用一个特定char‘@’字符结尾，前跟一个要传输的float型数据。
+//主板与副板之间的通讯一共有四个函数：1，来自主板的开始/停止烧水指令；2，来自主板的开始/停止加水指令；3,来自主板的开始/停止风扇指令；4,来自主板的获取温度反馈指令；5，来自主板的获取重量反馈指令；6，来自副板的重量反馈以及来自副板的温度反馈。来自主板的指令信号使用单个char字符表示；来自副板的每一条反馈数据均使用一个特定char‘@’字符结尾，前跟一个要传输的float型数据。
+
+//未完成：验证主板与副板的指令传递与反馈数据是否正确
 
 ////////////////////////////////////////////////////////////////////
 class AllMenus {
@@ -154,6 +156,8 @@ class PushBtnsBeTriggeredEvents{
     void startOrStopBoilWater(bool flag);
     void startOrStopAddWater(bool flag);
     void startOrStopFan(bool flag);
+    float callTempFeedback();
+    float callWeightFeedback();
 };
 
 PushBtnsBeTriggeredEvents::PushBtnsBeTriggeredEvents(int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
@@ -203,34 +207,74 @@ void PushBtnsBeTriggeredEvents::startOrStopBoilWater(bool flag){
   while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
 
   }
-  if(flag){
+  if(flag){//开始烧水
     Serial.write('A');
-  }else{
+  }else{//停止烧水
     Serial.write('B');
   }
 }
 void PushBtnsBeTriggeredEvents::startOrStopAddWater(bool flag){
-  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
+  while(!Serial);//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
+  if(flag){//开始加水
+    Serial.write('C');
+    Serial.flush();//程序运行至该函数，会进入等待知道所有要通过串口发送出去的数据被发送，才会从该函数返回并运行下一句。
+  }else{//停止加水
+    Serial.write('D');
+    Serial.flush();
+  }
+/*
+  while(Serial.available()>0){
+    Serial.read();
+  }
+  delay(100);
+  while(Serial.available()>0){
+    char a = Serial.read();
 
   }
-  if(flag){
-    Serial.write('C');
-  }else{
-    Serial.write('D');
+  while(Serial.available()>0){
+    Serial.read();//再次清空输出
   }
+*/
 }
 
 void PushBtnsBeTriggeredEvents::startOrStopFan(bool flag){
-  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
-
-  }
-  if(flag){
+  while(!Serial);
+  if(flag){//开启风扇
     Serial.write('E');
-  }else{
+    Serial.flush();
+  }else{//停止风扇
     Serial.write('F');
+    Serial.flush();
   }
 }
-
+float PushBtnsBeTriggeredEvents::callTempFeedback(){
+  float a;
+  while(!Serial);
+  while(Serial.available()>0){
+    Serial.read();//read会从串口输入寄存器里按顺序取出（即返回）一个输入进来的字符，并且将这个字符从串口输入寄存器里删除。这里做的目的是用其清空串口输入寄存器。
+  }
+  Serial.write('G');
+  delay(100);//在主板送出指令后副板接收到指令；当副版成功获取指令时会向主板反馈一个信息，这个信息需要被主板及时读取。所以等待100ms，以使副板有足够的时间发送回馈信息。
+  a=Serial.parseFloat();
+  while(Serial.available()>0){
+    Serial.read();//再次清空串口输入寄存器
+  }
+  return a;
+}
+float PushBtnsBeTriggeredEvents::callWeightFeedback(){
+  float a;
+  while(!Serial);  
+  while(Serial.available()>0){
+    Serial.read();
+  }
+  Serial.write('H');
+  delay(100);
+  a = Serial.parseFloat();
+  while(Serial.available()>0){
+  Serial.read();
+  }
+  return a;
+}
 ////////////////////////////////////////////////////////////////////
 class PushBtns{
   public:
@@ -348,7 +392,7 @@ void PushBtns::selectEvents(){
           pushBtnsBeTriggeredEvents.lcd1602.showOnLCD("ALL MODE","SHUTED DOWN");
           delay(2000);
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0);
-          Serial.print('s');                  
+          //Serial.print('s');                  
           break;          
         case 1:
         //SINGLEBOIL
@@ -705,4 +749,9 @@ void loop() {
   //Serial.print(pushBtns->pushBtnsBeTriggeredEvents.getTimeBuffer.second);
 }
 
+/*
+void serialEvent(){
+  //这个Arudino内置的函数会在每次loop函数后被调用（如果有新数据从RX脚写入）。在此暂时先搁置。
 
+}
+*/
