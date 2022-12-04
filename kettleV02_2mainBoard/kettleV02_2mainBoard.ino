@@ -34,7 +34,7 @@ String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
     if(findstr[i]==' ') ++rowsNum;   
   }
   if(rowsNum-1<menuRowIndex) return "2";//对传入的超过现菜单最大行索引数的行索引参数，在这一步便予以处理
-  // int String::indexOf(char Index),返回字符串中从前往后查找到的第一个Index的位置；String String::substring(int from,int to=String.lenth()+1)，返回一个字符串中从位置from至to的字串。一个String的第一个字符的位置是0.
+  // int String::indexOf(char Index),返回字符串中从前往后查找到的第一个Index的位置；String String::substring(int from,int to=String.lenth()+1)，返回一个字符串中从位置from至to的字串。一个String的第一个字符的位置是0.如果没有找到，则返回-1。
   for(int i = 0 ;i<menuRowIndex+1;i++){
     findstr.remove(0,findstr.indexOf(' ')+1);//void String::remove(int from,int to)，移除原字符串中从from至to（不包括to）位置之间的字符
   }
@@ -249,7 +249,8 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0):pushBtnsBeTriggeredEvents(pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinClkEn,pinClkClk,pinClkDat,pinRW){
   EEPROM.get(0,waterWeight);
-  EEPROM.get(2,cycleGapDay);
+  EEPROM.get(2,
+  cycleGapDay);
   EEPROM.get(4,cycleClock);
   EEPROM.get(6,addWaterLim);
   EEPROM.get(8,heatSaveTemp);
@@ -284,7 +285,6 @@ void PushBtns::upEvents(){
     delay(500);//避免在LOOP函数中因刷新过快出现一些问题,另外，它还控制着当按住按钮不放时菜单栏滚动的速率
     //Serial.print("func");//测试
   }
-  
 }
 void PushBtns::downEvents(){
   if(digitalRead(down)==triggeredLevelOfDown){
@@ -541,6 +541,7 @@ void PushBtns::selectEvents(){
   }
   delay(100);
 }
+
 void PushBtns::quitEvents(){
   if(digitalRead(quit)==triggeredLevelOfQuit){
     delay(100);
@@ -549,8 +550,8 @@ void PushBtns::quitEvents(){
     if(pushBtnsBeTriggeredEvents.lcd1602.menuIndexOfCurrentScreen!=0)
       pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 0); //基于目前的菜单内容，这个简陋的返回函数是可用的     
   }
-  
 }
+
 void PushBtns::onAndOffEvents(){
   if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff) delay(100);
   //if(digitalRead(onAndOff)==triggeredLevelOfOnAndOff && onAndOffFlag==1) delay(100);//去按钮抖动
@@ -572,6 +573,7 @@ void PushBtns::onAndOffEvents(){
     delay(1000);
   }
 }
+
 int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode){
   bool numChoosing=true,singleSelectFlag=true;//在同一行中定义声明多个变量并初始化
   int choosedNum=start,lastChoosedNum=start;
