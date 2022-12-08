@@ -129,7 +129,7 @@ void loop() {
   Serial.println();
   delay(500);  
 */  
-  Serial.println(pbt->mlx90614.readObjectTempC());
+  //Serial.println(pbt->mlx90614.readObjectTempC());
 }  
 
 
