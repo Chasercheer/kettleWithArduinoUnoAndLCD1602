@@ -49,7 +49,7 @@ class HX711with5KgSensor{
     unsigned long HX711_Read();
   private:
     int HX711_SCK,HX711_DT;
-    float gapValue,weight_Maopi ,weight_Shiwu;//修改这个值以修正传感器称重结果。
+    float gapValue,weight_Maopi ,weight_Shiwu;//修改gapValue这个值以修正传感器称重结果。
   
 
 };
@@ -118,17 +118,17 @@ unsigned long HX711with5KgSensor::HX711_Read()	//增益128。从HX711芯片上�
 
 class SimpleMLX90614{//简易的MLX90614的通信类。需要导入Arduino Wire库后使用。
 public:
-  SimpleMLX90614::SimpleMLX90614(uint8_t i2caddr=0x5A);//MLX90614的说明书上表示它的SMBUS地址是0x0E,但它在两线制的IIC中的实际出厂设定的地址是0x5A（见说明书的“从动器地址”）。也可以使用群呼地址0x00。群呼地址0x00是IIC协议中的保留地址，当主机使用该地址寻址时，当前IIC总线上连接的所有器件都会应答，但最终只会有一个从器件会与主机通信。
+  SimpleMLX90614::SimpleMLX90614(uint8_t i2cAddr=0x5A);//MLX90614的说明书上表示它的SMBUS地址是0x0E,但它在两线制的IIC中的实际出厂设定的地址是0x5A（见说明书的“从动器地址”）。也可以使用群呼地址0x00。群呼地址0x00是IIC协议中的保留地址，当主机使用该地址寻址时，当前IIC总线上连接的所有器件都会应答，但最终只会有一个从器件会与主机通信。
   float readAmbientTempC();//读取传感器周围的环境摄氏度温度
   float readObjectTempC();//读取传感器前方的被测物体摄氏度温度
 private:
-  uint8_t i2caddr;
+  uint8_t i2cAddr;
   uint16_t readRawTempVal(uint8_t addr);//读取传感器返回的关于温度的原始数值。
 };
 
-SimpleMLX90614::SimpleMLX90614(uint8_t i2caddr){
+SimpleMLX90614::SimpleMLX90614(uint8_t i2cAddr){
   Wire.begin();
-  this->i2caddr = i2caddr;
+  this->i2cAddr = i2cAddr;
 }
 
 float SimpleMLX90614::readAmbientTempC(){
@@ -149,10 +149,10 @@ float SimpleMLX90614::readObjectTempC(){
 
 uint16_t SimpleMLX90614::readRawTempVal(uint8_t addr){
   uint16_t res;
-  Wire.beginTransmission(i2caddr);
+  Wire.beginTransmission(i2cAddr);
   Wire.write(addr);  //addr为MLX90614储存温度的RAM地址。0x07是MLX90614储存被测物体温度的RAM地址；0x06是MLX90614储存其周围环境温度的RAM地址。
   Wire.endTransmission(false);
-  Wire.requestFrom(i2caddr,(uint8_t)3);
+  Wire.requestFrom(i2cAddr,(uint8_t)3);
   if(Wire.available()>0){
     res = Wire.read();
     res |= Wire.read()<<8;
