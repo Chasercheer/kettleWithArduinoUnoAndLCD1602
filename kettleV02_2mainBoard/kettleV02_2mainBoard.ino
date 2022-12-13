@@ -46,9 +46,8 @@ String AllMenus::pickALineInMenus(int menuIndex,int menuRowIndex) {
 }
 
 void AllMenus::ChangeALineInMenus(int menuIndex,int menuRowIndex,String changeLineContent){
-  char cmenuIndex = 48+menuIndex;
-  char cmenuRowIndex = 48+menuRowIndex;
-  if(menusAndTheirsContent.indexOf(cmenuIndex)==-1) return ;
+  //String cmenuIndex = '*'+String(menuIndex);
+  //if(menusAndTheirsContent.indexOf(cmenuIndex)==-1) return ;
   //void函数在C++中也是可以使用return的。这里使用return的目的是让函数如果运行到此句则退出该函数。void是一个类型，它的真正意义是：“大小不确定的类型”。既然是大小不确定的类型，那么编译器本着确定才能行动的原则，在面对这个类型时会束手无策，什么也不干。这就体现为void返回值的函数什么也不返回。
   menusAndTheirsContent.replace(pickALineInMenus(menuIndex,menuRowIndex),changeLineContent);  //string.replace(str1,str2)可将string中的子字符串str1替换为str2的内容。但这样做会将string中的所有str1替换为str2。但在这个项目中，这个行为并不会造成什么影响。
 }
@@ -279,7 +278,7 @@ float PushBtnsBeTriggeredEvents::callWeightFeedback(){
 class PushBtns{
   public:
   int waterWeight,cycleGapDay,cycleClock,addWaterLim,heatSaveTemp,heatTemp,bottleWeight;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
-  bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
+  bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
   PushBtnsBeTriggeredEvents pushBtnsBeTriggeredEvents;
@@ -308,6 +307,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   AUTOBOILFLAG=false;
   HEATSAVEFLAG=false;
   HEATFLAG=false;
+  MANUALWATERFLAG=false;
   this->up=up;//使用this指针可以在方法中使用来自对象的与类形参变量同名的数据成员
   this->down=down;
   this->quit=quit;
@@ -337,6 +337,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   AUTOBOILFLAG=false;
   HEATSAVEFLAG=false;
   HEATFLAG=false;
+  MANUALWATERFLAG=false;
   this->up=up;
   this->down=down;
   this->quit=quit;
@@ -465,10 +466,22 @@ void PushBtns::selectEvents(){
           }
           break;
         case 6:
+        //MANUALWATER
+          if(MANUALWATERFLAG){
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:off");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 6); 
+            MANUALWATERFLAG=false;
+          }else{
+            pushBtnsBeTriggeredEvents.lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:on");
+            pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(0, 6); 
+            MANUALWATERFLAG=true;          
+          }
+          break;          
+        case 7:
         //SET
           pushBtnsBeTriggeredEvents.lcd1602.showMenuContentOnLcd(1, 0); 
           break;
-        case 7:
+        case 8:
         //SETSYSTEMTIME->进入时间选择页面
           pushBtnsBeTriggeredEvents.getTime();
           pushBtnsBeTriggeredEvents.setTimeBuffer.year=pushBtnsBeTriggeredEvents.getTimeBuffer.year;
@@ -725,7 +738,7 @@ void setup() {
   
   //但很赞的是，Arduino的String类尽管与C++STL的string类有着诸多不同，但多行赋值的语法是相同的。HOORAY！！！
   pushBtns->pushBtnsBeTriggeredEvents.lcd1602.m.menusAndTheirsContent =
-  "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off SET SETSYSTEMTIME \n"//原始菜单1内容
+  "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off MANUALWATER:off SET SETSYSTEMTIME \n"//原始菜单1内容
   "*1 SETWATERW: SETCYCLEGAPDAY SETCYCLECLOCK AUTOADDWATERLIM SETHEATSAVETEMP SETHEATTEMP SETBOTTLEWEIGHT WATERWIGHT \n"//原始菜单2内容
   "*2 CHECKTIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE ";  //原始菜单3内容。作为最后一行，结尾需要加空格。否则最后一个菜单的最后一行无法被加载。
 

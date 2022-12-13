@@ -187,6 +187,7 @@ void PushBtnsBeTriggeredEventsButAssistantBoard::mainBoardCommandReciver(){
       a = Serial.read();
       switch(a){
         case 'A'://开始烧水
+        
           break;
         case 'B'://停止烧水
           break;
