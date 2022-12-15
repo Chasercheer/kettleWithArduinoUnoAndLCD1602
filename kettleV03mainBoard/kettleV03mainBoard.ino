@@ -133,34 +133,51 @@ void LCD1602::menuScollDown(){
 
 class PushBtns{
   public:
+  
   LCD1602 lcd1602;
   Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间。值得注意的是，这个结构体内的数据成员的类型为uint_8，意为八位无符号整数，即这些数据成员的取值范围为0-255。用int为其赋值时可能会溢出。
   Ds1302 ds1302;
   int waterWeight,cycleGapDay,cycleClock,addWaterLim,heatSaveTemp,heatTemp,bottleWeight;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
   bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
+  float currentWaterWeight,currentWaterTemp;  
+  //bool stateHeat,stateAddWater,stateFan;//这三个是具体表示当前烧水壶实际工作状态的变量
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
-  ////////////////////data↑///////////////////////
-  ////////////////////func↓///////////////////////
+  
+////////////////////data↑///////////////////////
+
+////////////////////func↓///////////////////////
+ 
+//--------------------------构造函数------------------------------
   PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);
   PushBtns(int up,int down,int quit,int select,int OnAndOff,int backLight,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW=0);  
+//-------------------------------------------------------------------
+
+//--------------------------按钮事件------------------------------
+  void upEvents();
+  void downEvents();
+  void selectEvents();
+  void quitEvents();
+  void onAndOffEvents();
+//-------------------------------------------------------------------
+
+
+//--------------------------按钮触发事件------------------------------
   void setTime();   
   void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
   void getTime();
   void startOrStopBoilWater(bool flag);
   void startOrStopAddWater(bool flag);
   void startOrStopFan(bool flag);
+  int numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode=-1);//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面。他接受一个初始值，一个步长，一个选择值上限值，一个选择值下限，一个未选择便退出时的标识值作为参数。    
   float callTempFeedback();
   float callWeightFeedback();
-  int numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode=-1);//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面。他接受一个初始值，一个步长，一个选择值上限值，一个选择值下限，一个未选择便退出时的标识值作为参数。    
- 
+//-------------------------------------------------------------------
 
-  void upEvents();
-  void downEvents();
-  void selectEvents();
-  void quitEvents();
-  void onAndOffEvents();
-  
+//--------------------------其它LOOP重复调用函数----------------------
+  void modeExecuter();//这个函数在loop函数中，根据各个状态的FLAG时刻控制着各个模式的执行与停止
+  void dataFromAssisBoardReceiver();//这个函数在loop函数中，时刻接受着来自副板的温度数据与  
+//-------------------------------------------------------------------
 };
 
 PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLight,int pinDB0,int pinDB1,int pinDB2,int pinDB3,int pinDB4,int pinDB5,int pinDB6,int pinDB7,int pinE,int pinRS,int pinClkEn,int pinClkClk,int pinClkDat,int pinRW):lcd1602(pinDB0,pinDB1,pinDB2,pinDB3,pinDB4,pinDB5,pinDB6,pinDB7,pinE,pinRS,pinRW),ds1302(pinClkEn,pinClkClk,pinClkDat){
@@ -252,7 +269,7 @@ void PushBtns::upEvents(){
   }
   if(digitalRead(up)==triggeredLevelOfUp){
     lcd1602.menuScollUp();
-    delay(500);//避免在LOOP函数中因刷新过快出现一些问题,另外，它还控制着当按住按钮不放时菜单栏滚动的速率
+    delay(300);//避免在LOOP函数中因刷新过快出现一些问题,另外，它还控制着当按住按钮不放时菜单栏滚动的速率
     //Serial.print("func");//测试
   }
 }
@@ -262,7 +279,7 @@ void PushBtns::downEvents(){
   }
   if(digitalRead(down)==triggeredLevelOfDown){
     lcd1602.menuScollDown();
-    delay(500);
+    delay(300);
   }
   
 }
@@ -278,6 +295,11 @@ void PushBtns::selectEvents(){
       switch(lcd1602.firstLineNumOfCurrentScreen){
         case 0:
         //SHUTDOWN
+          SINGLEBOILFLAG=false;
+          CYCLEBOILFLAG=false;
+          AUTOBOILFLAG=false;
+          HEATSAVEFLAG=false;
+          HEATFLAG=false;
           lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
           lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
           lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
@@ -286,6 +308,7 @@ void PushBtns::selectEvents(){
           lcd1602.showOnLCD("ALL MODE","SHUTED DOWN");
           delay(2000);
           lcd1602.showMenuContentOnLcd(0, 0);
+
           //Serial.print('s');                  
           break;          
         case 1:
@@ -339,22 +362,14 @@ void PushBtns::selectEvents(){
           }
           break;
         case 5:
-        //HEAT，但与上模式不并行
+        //HEAT，此为软件加热模式，可与上模式并行，另有可控温度的功能
           if(HEATFLAG){
             lcd1602.m.ChangeALineInMenus(0,5,"HEAT:off");
-            lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:on");
-            lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
-            lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:on");
-            lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:on");            
-            lcd1602.showMenuContentOnLcd(0, 5); 
+            lcd1602.showMenuContentOnLcd(0, 5);            
             HEATFLAG=false;
           }else{
             lcd1602.m.ChangeALineInMenus(0,5,"HEAT:on");
-            lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
-            lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
-            lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
-            lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:off");
-            lcd1602.showMenuContentOnLcd(0, 5); 
+            lcd1602.showMenuContentOnLcd(0, 5);             
             HEATFLAG=true;          
           }
           break;
@@ -581,21 +596,31 @@ void PushBtns::startOrStopBoilWater(bool flag){
   while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
 
   }
-  if(flag){//开始烧水
+  callTempFeedback();
+  if(currentWaterTemp<100){
+    if(flag){//开始烧水
+    
     Serial.write('A');
-  }else{//停止烧水
+    Serial.flush();
+    }else{//停止烧水
     Serial.write('B');
+    Serial.flush();
+    }
   }
 }
 void PushBtns::startOrStopAddWater(bool flag){
   while(!Serial);//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
-  if(flag){//开始加水
-    Serial.write('C');
-    Serial.flush();//程序运行至该函数，会进入等待知道所有要通过串口发送出去的数据被发送，才会从该函数返回并运行下一句。
-  }else{//停止加水
-    Serial.write('D');
-    Serial.flush();
+  callWeightFeedback();
+  if(currentWaterWeight<addWaterLim){
+    if(flag){//开始加水
+      Serial.write('C');
+      Serial.flush();//程序运行至该函数，会进入等待知道所有要通过串口发送出去的数据被发送，才会从该函数返回并运行下一句。
+    }else{//停止加水
+      Serial.write('D');
+      Serial.flush();
+    }    
   }
+
 /*
   while(Serial.available()>0){
     Serial.read();
@@ -613,41 +638,43 @@ void PushBtns::startOrStopAddWater(bool flag){
 
 void PushBtns::startOrStopFan(bool flag){
   while(!Serial);
-  if(flag){//开启风扇
-    Serial.write('E');
-    Serial.flush();
-  }else{//停止风扇
-    Serial.write('F');
-    Serial.flush();
+  callTempFeedback();
+  if(currentWaterTemp>70){
+    if(flag){//开启风扇
+      Serial.write('E');
+      Serial.flush();
+    }else{//停止风扇
+      Serial.write('F');
+      Serial.flush();
+    }
   }
 }
+
 float PushBtns::callTempFeedback(){
-  float a;
   while(!Serial);
   while(Serial.available()>0){
     Serial.read();//read会从串口输入寄存器里按顺序取出（即返回）一个输入进来的字符，并且将这个字符从串口输入寄存器里删除。这里做的目的是用其清空串口输入寄存器。
   }
   Serial.write('G');
-  delay(100);//在主板送出指令后副板接收到指令；当副版成功获取指令时会向主板反馈一个信息，这个信息需要被主板及时读取。所以等待100ms，以使副板有足够的时间发送回馈信息。
-  a=Serial.parseFloat();
+  delay(50);//在主板送出指令后副板接收到指令；当副版成功获取指令时会向主板反馈一个信息，这个信息需要被主板及时读取。所以等待100ms，以使副板有足够的时间发送回馈信息。
+  currentWaterTemp = Serial.parseFloat();
   while(Serial.available()>0){
     Serial.read();//再次清空串口输入寄存器
   }
-  return a;
+  return currentWaterTemp;
 }
 float PushBtns::callWeightFeedback(){
-  float a;
   while(!Serial);  
   while(Serial.available()>0){
     Serial.read();
   }
   Serial.write('H');
-  delay(100);
-  a = Serial.parseFloat();
+  delay(50);
+  currentWaterWeight = Serial.parseFloat();
   while(Serial.available()>0){
   Serial.read();
   }
-  return a;
+  return currentWaterWeight;
 }
 
 int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode){
@@ -687,6 +714,8 @@ int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int 
     }else if (digitalRead(select) != triggeredLevelOfSelect && singleSelectFlag){
       singleSelectFlag=false;      
     }else if(digitalRead(select)==triggeredLevelOfSelect){
+      delay(100);
+      while(digitalRead(select)==triggeredLevelOfSelect) delay(50);//这句与上句是防止选中数据后按下确定按钮，由于未能及时松开按钮而再次进入数值选择界面的情况发生。
       numChoosing=false;
     }
 
@@ -699,11 +728,28 @@ int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int 
   }
   return choosedNum;
 }
+
+void PushBtns::modeExecuter(){
+  if(SINGLEBOILFLAG){
+    if(callTempFeedback()<70){
+      startOrStopBoilWater(true);
+    }else{
+      lcd1602.showOnLCD("WATER IS HOT!","NO NEED TO BOIL!");
+      delay(2000);
+      lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
+      lcd1602.showMenuContentOnLcd(0, 1); 
+      SINGLEBOILFLAG=false;      
+    }
+  }
+  if(CYCLEBOILFLAG){
+
+  }
+  if(AUTOBOILFLAG){}
+  if(HEATSAVEFLAG){}
+  if(HEATFLAG){}
+  if(MANUALWATERFLAG){}  
+}
 ////////////////////////////////////////////////////////////////////
-class Kettle{
-
-};
-
 
 
 ////////////////////++++++++++++++++++++++++++++++++/////////////////////////
@@ -744,6 +790,7 @@ void loop() {
   pushBtns->onAndOffEvents();
   pushBtns->selectEvents();
   pushBtns->quitEvents();
+  pushBtns->modeExecuter();
   //Serial.print(pushBtns->getTimeBuffer.second);
 }
 

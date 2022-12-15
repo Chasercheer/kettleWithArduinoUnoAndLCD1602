@@ -166,14 +166,19 @@ uint16_t SimpleMLX90614::readRawTempVal(uint8_t addr){
 ///////////////////////////////////////////
 class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEvents类。
   public:
+    int pinBoil,pinAddWater,pinFan;
     SimpleMLX90614 mlx90614;
     HX711with5KgSensor hx711;
-    PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711DT,int pinHX711SCK,int pinMLX90614SCL,int pinMLX90614SDA);
+    float tempSendBuffer,weightSendBuffer;
+    PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711SCK=2,int pinHX711DT=3,uint8_t i2cAddr=0x5A);
     void mainBoardCommandReciver();
  
 };
 
-PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711DT,int pinHX711SCK,int pinMLX90614SCL,int pinMLX90614SDA):mlx90614(),hx711(){
+PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711SCK,int pinHX711DT,uint8_t i2cAddr):mlx90614(i2cAddr),hx711(pinHX711SCK,pinHX711DT){
+  this->pinBoil=pinBoil;
+  this->pinAddWater=pinAddWater;
+  this->pinFan=pinFan;
   pinMode(pinBoil,OUTPUT);
   pinMode(pinAddWater,OUTPUT);
   pinMode(pinFan,OUTPUT);
@@ -187,21 +192,32 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
       a = Serial.read();
       switch(a){
         case 'A'://开始烧水
-        
+          digitalWrite(pinBoil,HIGH);
           break;
         case 'B'://停止烧水
+          digitalWrite(pinBoil,LOW);        
           break;
         case 'C'://开始加水
+          digitalWrite(pinAddWater,HIGH);
           break;
         case 'D'://停止加水
+          digitalWrite(pinAddWater,LOW);
           break;
         case 'E'://开启风扇
+          digitalWrite(pinFan,HIGH);
           break;
         case 'F'://停止风扇
+          digitalWrite(pinFan,LOW);
           break;
         case 'G'://温度反馈
+          tempSendBuffer = mlx90614.readObjectTempC();
+          Serial.print(String('t'+tempSendBuffer));//Arduino的串口通讯并不能直接发送float数据。只能将其转为String发送，然后在接收端使用Serial.parseFloat()方法读取。但parseFlaot方法需要接受一个非Flaot字符来终止它对接收缓冲区的读取。这里用字符‘t’来分隔上一个发送的浮点数与该被发送的浮点数，顺便为主板收听函数提供判断数据应该储存在哪个变量里的依据。
+          Serial.flush();//等待信息从发送缓冲区全部发送完毕
           break;
         case 'H'://重量反馈
+          weightSendBuffer = hx711.get_Weight();
+          Serial.print('w'+String(weightSendBuffer));
+          Serial.flush();
           break;
       }
     }  
@@ -214,7 +230,7 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
 
 PushBtnsButAssiatantBoard *pbt ;
 void setup() {
-  pbt = new PushBtnsButAssiatantBoard(4,5,6,2,3,A5,A4);
+  pbt = new PushBtnsButAssiatantBoard(4,5,6);
   Serial.begin(9600);
   
   while (!Serial);
