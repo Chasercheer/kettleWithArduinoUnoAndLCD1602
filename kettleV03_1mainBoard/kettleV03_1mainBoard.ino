@@ -320,75 +320,99 @@ void PushBtns::selectEvents(){
         case 1:
         //SINGLEBOIL
           if(SINGLEBOILFLAG){
+            /*
             lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:off");
             lcd1602.showMenuContentOnLcd(0, 1); 
             SINGLEBOILFLAG=false;
+            */
+            mainBoardCommandSender("#s");
           }else{
             lcd1602.m.ChangeALineInMenus(0,1,"SINGLEBOIL:on");
             lcd1602.showMenuContentOnLcd(0, 1); 
-            SINGLEBOILFLAG=true;          
+            SINGLEBOILFLAG=true;
+            mainBoardCommandSender("#S");          
           }
           
           break;
         case 2:
         //CYCLEBOIL
           if(CYCLEBOILFLAG){
+          /*
             lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:off");
             lcd1602.showMenuContentOnLcd(0, 2); 
             CYCLEBOILFLAG=false;
+          */
+            mainBoardCommandSender("#c");
           }else{
             lcd1602.m.ChangeALineInMenus(0,2,"CYCLEBOIL:on");
             lcd1602.showMenuContentOnLcd(0, 2); 
-            CYCLEBOILFLAG=true;          
+            CYCLEBOILFLAG=true;
+            mainBoardCommandSender("#C");          
           }
           
           break;
         case 3:
         //ATUOBOIL
           if(AUTOBOILFLAG){
+            /*
             lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
             lcd1602.showMenuContentOnLcd(0, 3); 
             AUTOBOILFLAG=false;
+            */
+            mainBoardCommandSender("#a");
           }else{
             lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:on");
             lcd1602.showMenuContentOnLcd(0, 3); 
-            AUTOBOILFLAG=true;          
+            AUTOBOILFLAG=true; 
+            mainBoardCommandSender("#A");         
           }
           break;
         case 4:
         //HEATSAVE
           if(HEATSAVEFLAG){
+            /*
             lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:off");
             lcd1602.showMenuContentOnLcd(0, 4); 
             HEATSAVEFLAG=false;
+            */
+            mainBoardCommandSender("#e");
           }else{
             lcd1602.m.ChangeALineInMenus(0,4,"HEATSAVE:on");
             lcd1602.showMenuContentOnLcd(0, 4); 
-            HEATSAVEFLAG=true;          
+            HEATSAVEFLAG=true;  
+            mainBoardCommandSender("#E");        
           }
           break;
         case 5:
         //HEAT，此为软件加热模式，可与上模式并行，另有可控温度的功能
           if(HEATFLAG){
+            /*
             lcd1602.m.ChangeALineInMenus(0,5,"HEAT:off");
             lcd1602.showMenuContentOnLcd(0, 5);            
             HEATFLAG=false;
+            */
+            mainBoardCommandSender("#h");            
           }else{
             lcd1602.m.ChangeALineInMenus(0,5,"HEAT:on");
             lcd1602.showMenuContentOnLcd(0, 5);             
-            HEATFLAG=true;          
+            HEATFLAG=true;
+            mainBoardCommandSender("#H");          
           }
           break;
         case 6:
         //MANUALWATER
           if(MANUALWATERFLAG){
+            /*
             lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:off");
             lcd1602.showMenuContentOnLcd(0, 6); 
             MANUALWATERFLAG=false;
+            */
+            mainBoardCommandSender("#m");
           }else{
             lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:on");
             lcd1602.showMenuContentOnLcd(0, 6); 
-            MANUALWATERFLAG=true;          
+            MANUALWATERFLAG=true;
+            mainBoardCommandSender("#M");          
           }
           break;          
         case 7:
@@ -833,44 +857,8 @@ int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int 
 void PushBtns::mainBoardCommandSender(String signal){
   while(!Serial);
   if(signal[1] == '#'){
-    switch(signal[2]){
-      case 'S':
-        Serial.print(signal);
-        Serial.flush();      
-        break;
-      case 'C':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'c':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'A':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'a':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'E':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'e':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'H':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-      case 'M':
-        Serial.print(signal);
-        Serial.flush();
-        break;
-    }   
+    Serial.print(signal);
+    Serial.flush();    
   }else{
     switch(signal[1]){
       case 'W':
