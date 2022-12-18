@@ -1,5 +1,5 @@
 #include <Wire.h>
-
+#include<EEPROM.h>
 /////////////////////////////////////////////
 /*
 测重原理讲解：
@@ -170,6 +170,7 @@ class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEve
     SimpleMLX90614 mlx90614;
     HX711with5KgSensor hx711;
     float tempSendBuffer,weightSendBuffer;
+    int bottleWeight,addWaterLimHigh,addWaterLimLow,cuccleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;//这些变量将存入副板的EEPROM中
     PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711SCK=2,int pinHX711DT=3,uint8_t i2cAddr=0x5A);
     void mainBoardCommandReciver();
  
@@ -182,6 +183,14 @@ PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater
   pinMode(pinBoil,OUTPUT);
   pinMode(pinAddWater,OUTPUT);
   pinMode(pinFan,OUTPUT);
+  EEPROM.get(0,bottleWeight);
+  EEPROM.get(2,cycleGapDay);
+  EEPROM.get(4,cycleClockHour);
+  EEPROM.get(6,cycleClockMin);  
+  EEPROM.get(8,addWaterLimHigh);
+  EEPROM.get(10,addWaterLimLow);  
+  EEPROM.get(12,heatSaveTemp);
+  EEPROM.get(14,heatTemp);
 }
 
 void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
@@ -263,9 +272,9 @@ void loop() {
 }  
 
 
-/*
+
 void serialEvent(){
   //这个Arudino内置的函数会在每次loop函数后被调用（如果有新数据从RX脚写入）。在此暂时先搁置。
   
 }
-*/
+
