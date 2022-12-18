@@ -44,13 +44,13 @@ Weight_Shiwu = (unsigned long)((float)Weight_Shiwu/429.5);（单位为g）
 class HX711with5KgSensor{
   public:
     HX711with5KgSensor(int HX711_SCK=2,int HX711_DT=3,float gapValue=389.99);
-    void get_Maopi();
+    float get_Maopi();
     float get_Weight();
     unsigned long HX711_Read();
+    float gapValue,weight_Maopi ,weight_Shiwu;//修改gapValue这个值以修正传感器称重结果。
   private:
     int HX711_SCK,HX711_DT;
-    float gapValue,weight_Maopi ,weight_Shiwu;//修改gapValue这个值以修正传感器称重结果。
-  
+    
 
 };
 
@@ -65,9 +65,11 @@ HX711with5KgSensor::HX711with5KgSensor(int HX711_SCK,int HX711_DT,float gapValue
 }
 
 
-void HX711with5KgSensor::get_Maopi() //获取皮重。
+float HX711with5KgSensor::get_Maopi() //获取皮重。
 {
 	weight_Maopi = HX711_Read();
+  weight_Maopi = weight_Maopi/gapValue;
+  return weight_Maopi;
 } 
 
 //****************************************************
@@ -169,11 +171,26 @@ class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEve
     int pinBoil,pinAddWater,pinFan;
     SimpleMLX90614 mlx90614;
     HX711with5KgSensor hx711;
-    float tempSendBuffer,weightSendBuffer;
-    int bottleWeight,addWaterLimHigh,addWaterLimLow,cuccleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;//这些变量将存入副板的EEPROM中
+    int tempSendBuffer,weightSendBuffer;//用于缓存传感器温度值或重量值,即当前温度与当前去皮水重。诚然，传感器温度值和重量值都可以是浮点值，但是这种精度在此不必要。
+    int bottleWeight,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;//这些变量将存入副板的EEPROM中
+    bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//副板上各个烧水模式的状态标志
+
+////////////////////data↑///////////////////////
+
+////////////////////func↓///////////////////////    
+
+//--------------------------构造函数------------------------------
     PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711SCK=2,int pinHX711DT=3,uint8_t i2cAddr=0x5A);
+//---------------------------------------------------------------
+
+//--------------------------主板通讯函数------------------------------
     void mainBoardCommandReciver();
- 
+    void AssisBoardDataSender(String signal);
+//-------------------------------------------------------------------
+
+//--------------------------功能函数------------------------------   
+    void boilStateController();//放在loop函数中，用以开启/关闭，监视，控制各个烧水模式的运行。
+//--------------------------------------------------------------- 
 };
 
 PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater,int pinFan,int pinHX711SCK,int pinHX711DT,uint8_t i2cAddr):mlx90614(i2cAddr),hx711(pinHX711SCK,pinHX711DT){
@@ -184,6 +201,7 @@ PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater
   pinMode(pinAddWater,OUTPUT);
   pinMode(pinFan,OUTPUT);
   EEPROM.get(0,bottleWeight);
+  hx711.weight_Maopi=bottleWeight;
   EEPROM.get(2,cycleGapDay);
   EEPROM.get(4,cycleClockHour);
   EEPROM.get(6,cycleClockMin);  
@@ -194,6 +212,132 @@ PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater
 }
 
 void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
+  String receiverBuffer;
+  char receiverCBuffer;
+  while(!Serial);
+  delay(50);//这是为确保在该函数被调用时副板能接收到主板的发送的（至少）一个的完整的数据包
+  if(Serial.available()>0){
+    receiverCBuffer=Serial.read();
+  }
+  if(receiverCBuffer =='@'){
+    receiverCBuffer=Serial.read();
+  }
+  if(receiverCBuffer =='#'){
+    receiverCBuffer=Serial.read();
+    switch(receiverCBuffer){
+      case 'S':
+        //收到单次烧水模式开始指令 
+        SINGLEBOILFLAG=true;
+        break;
+      case 's':
+        //收到单次烧水模式结束指令
+        SINGLEBOILFLAG=false;
+        break;
+      case 'C':
+        //收到周期定时烧水模式开始指令
+        CYCLEBOILFLAG=true;
+        break;
+      case 'c':
+        //收到周期定时烧水模式结束指令
+        CYCLEBOILFLAG=false;
+        break;
+      case 'A':
+        //收到自动续水烧水模式开始指令
+        AUTOBOILFLAG = true;        
+        break;
+      case 'a':
+        //收到自动续水烧水模式结束指令
+        AUTOBOILFLAG = false;
+        break;
+      case 'E':
+        //收到烧水后保温模式开始指令          
+        HEATSAVEFLAG=true;
+        break; 
+      case 'e':
+        //收到烧水后保温模式结束指令
+        HEATSAVEFLAG=false;
+        break;
+      case 'H':
+        //收到加热模式开始指令
+        HEATFLAG=true;
+        break; 
+      case 'h':
+        //收到加热模式结束指令 
+        HEATFLAG=false;
+        break; 
+      case 'M':
+        //收到手动上水开始指令
+        MANUALWATERFLAG=true;
+        break; 
+      case 'm':
+        //收到手动上水结束指令
+        MANUALWATERFLAG=false;
+        break;
+      case 'W':
+        //收到获取当前去皮后的水重指令
+        break;
+      case 'w':
+        //收到获取当前壶重指令
+        break;
+      case 't':
+        //收到获取当前温度指令
+        break;      
+    }
+  }else{
+    switch(receiverCBuffer){
+      case 'W':
+      //接收烧水水重上限
+        receiverBuffer = Serial.readStringUntil('@');//读取寄存器中的数据，直到遇到‘@’字符串后停止并返回终止字符'@'前的所有字符信息（这些信息被组成一个字符串），同时'@'字符串会被丢弃。
+        addWaterLimHigh = receiverBuffer.toInt();
+        EEPROM.put(8,addWaterLimHigh);        
+        break;
+      case 'C':
+      //接收周期烧水间隔日期
+        receiverBuffer = Serial.readStringUntil('@');
+        cycleGapDay = receiverBuffer.toInt();
+        EEPROM.put(2,cycleGapDay);
+        break;
+      case 'c':
+      //接收周期烧水时刻（先小时后分钟）
+        receiverBuffer = Serial.readStringUntil('@');
+        cycleClockHour = receiverBuffer.toInt();
+        EEPROM.put(4,cycleClockHour);
+        receiverBuffer = Serial.readStringUntil('@');
+        cycleClockMin = receiverBuffer.toInt();
+        EEPROM.put(6,cycleClockMin);        
+        break;
+      case 'A':
+      //接收自动续水壶中最低水量阈值
+        receiverBuffer = Serial.readStringUntil('@');
+        addWaterLimLow = receiverBuffer.toInt();
+        EEPROM.put(10,bottleWeight);
+        break;
+      case 'E':
+      //接收保温功能触发温度阈值
+        receiverBuffer = Serial.readStringUntil('@');
+        heatSaveTemp = receiverBuffer.toInt();
+        EEPROM.put(12,heatSaveTemp);
+        break;
+      case 'H':
+      //加热功能停止温度
+        receiverBuffer = Serial.readStringUntil('@');
+        heatTemp = receiverBuffer.toInt();
+        EEPROM.put(14,heatTemp);
+        break;
+      default://如果读到了错误的数据，便将这一整个数据包丢弃
+        while(Serial.available()>0){
+          receiverCBuffer=Serial.peek();//从串口输入寄存器中读取下一位数据，但与read()不同，它不将下一位数据从寄存器中删除。
+          if(receiverCBuffer=='#') break;
+          if(receiverCBuffer=='@') {
+            Serial.read();
+            break;
+          }
+          Serial.read();
+        }
+        break;
+    }
+  }  
+/*
   while(!Serial);
   char a;
   if(Serial.available()>0){
@@ -232,6 +376,40 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
     }  
   }
   delay(100);
+  */  
+}
+
+void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
+  while(!Serial);
+  if(signal[1] == '#'){
+    Serial.print(signal);
+    Serial.flush();    
+  }else{
+    switch(signal[1]){
+      case 'W':
+      //发送当前去皮水重信号
+        weightSendBuffer = hx711.get_Weight();
+        signal+=String(weightSendBuffer)+'@';
+        Serial.print(signal);
+        Serial.flush();
+        break;
+      case 'w':
+      //发送壶重数据信号
+        bottleWeight = hx711.get_Maopi();
+        EEPROM.put(0,bottleWeight);
+        signal+=String(bottleWeight)+'@';
+        Serial.print(signal);
+        Serial.flush();
+        break;
+      case 't':
+      //发送当前温度信号
+        tempSendBuffer = mlx90614.readObjectTempC();
+        signal+=String(tempSendBuffer)+'@';
+        Serial.print(signal);
+        Serial.flush();      
+        break;
+    }
+  }
 }
 ////////////////////////////////////////////
 

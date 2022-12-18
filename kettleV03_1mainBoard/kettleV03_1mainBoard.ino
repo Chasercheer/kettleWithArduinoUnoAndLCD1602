@@ -866,11 +866,6 @@ void PushBtns::mainBoardCommandSender(String signal){
         Serial.print(signal);
         Serial.flush();
         break;
-      case 'w':
-        signal+=String(bottleWeight)+'@';
-        Serial.print(signal);
-        Serial.flush();
-        break;
       case 'C':
         signal+=String(cycleGapDay)+'@';
         Serial.print(signal);
