@@ -1,3 +1,4 @@
+#include <Ds1302.h>
 #include <Wire.h>
 #include<EEPROM.h>
 /////////////////////////////////////////////
@@ -67,8 +68,7 @@ HX711with5KgSensor::HX711with5KgSensor(int HX711_SCK,int HX711_DT,float gapValue
 
 float HX711with5KgSensor::get_Maopi() //获取皮重。
 {
-	weight_Maopi = HX711_Read();
-  weight_Maopi = weight_Maopi/gapValue;
+	weight_Maopi = HX711_Read()/gapValue;
   return weight_Maopi;
 } 
 
@@ -77,9 +77,8 @@ float HX711with5KgSensor::get_Maopi() //获取皮重。
 //****************************************************
 float HX711with5KgSensor::get_Weight()//去皮重量计算：计算去皮后的放在传感器上的重物重量
 {
-	weight_Shiwu =  HX711_Read();
-	weight_Shiwu = weight_Shiwu - weight_Maopi;				//获取实物的AD采样数值。
-	weight_Shiwu = weight_Shiwu/gapValue; 	
+	weight_Shiwu =  HX711_Read()/gapValue;
+	weight_Shiwu = weight_Shiwu - weight_Maopi;				//获取实物的AD采样数值。	
 	return weight_Shiwu;
 }
 
@@ -171,10 +170,12 @@ class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEve
     int pinBoil,pinAddWater,pinFan;
     SimpleMLX90614 mlx90614;
     HX711with5KgSensor hx711;
+    Ds1302::DateTime TimeBuffer;//用以接收从主板来的ds1302的时间数据。
     int tempSendBuffer,weightSendBuffer;//用于缓存传感器温度值或重量值,即当前温度与当前去皮水重。诚然，传感器温度值和重量值都可以是浮点值，但是这种精度在此不必要。
     int bottleWeight,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;//这些变量将存入副板的EEPROM中
     bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//副板上各个烧水模式的状态标志
-
+    int lastRecordMillis1,lastRecordMillis2;//用于boilStateController()的计时。设置两个变量是为了使用两个不同的间隔周期去监视控制各个状态的运行。
+    //int fanRunningTime;//用于调控风扇的运行时间--*暂置
 ////////////////////data↑///////////////////////
 
 ////////////////////func↓///////////////////////    
@@ -324,6 +325,23 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
         heatTemp = receiverBuffer.toInt();
         EEPROM.put(14,heatTemp);
         break;
+      case 'T':
+      //当前时钟芯片所储存时间数据信号
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.year = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.month = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.day = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.hour = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.minute = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.second = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
+        TimeBuffer.dow = receiverBuffer.toInt();
+        break;
       default://如果读到了错误的数据，便将这一整个数据包丢弃
         while(Serial.available()>0){
           receiverCBuffer=Serial.peek();//从串口输入寄存器中读取下一位数据，但与read()不同，它不将下一位数据从寄存器中删除。
@@ -381,11 +399,11 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
 
 void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
   while(!Serial);
-  if(signal[1] == '#'){
+  if(signal[0] == '#'){
     Serial.print(signal);
     Serial.flush();    
   }else{
-    switch(signal[1]){
+    switch(signal[0]){
       case 'W':
       //发送当前去皮水重信号
         weightSendBuffer = hx711.get_Weight();
@@ -411,6 +429,50 @@ void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
     }
   }
 }
+
+void PushBtnsButAssiatantBoard::boilStateController(){
+  /*
+  SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;
+  tempSendBuffer,weightSendBuffer;
+  bottleWeight,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;
+  TimeBuffer;
+  lastRecordMillis1,lastRecordMillis2;
+  */
+  if(millis()-lastRecordMillis1>1000){//一秒检测一次各个功能的运行情况
+    lastRecordMillis1=millis();    
+    tempSendBuffer = mlx90614.readObjectTempC();
+    weightSendBuffer = hx711.get_Weight();
+    if(SINGLEBOILFLAG){
+      if(tempSendBuffer>95){
+        digitalWrite(pinBoil,LOW);
+        digitalWrite(pinFan,HIGH);
+      }else{
+        digitalWrite(pinBoil,HIGH);
+        digitalWrite(pinFan,LOW);//这样做不确定温度传感器是否会出现因风扇吹风而降温，从而使风扇关闭，而后风扇关闭传感器检测温度升回去于是又打开风扇，不停反复的情况。在安装温度传感器与风扇的位置时要注意。
+      }
+
+    }
+    if(CYCLEBOILFLAG){
+      
+    }
+    if(AUTOBOILFLAG){
+      
+    }
+    if(HEATSAVEFLAG){
+      
+    }
+    if(HEATFLAG){
+      
+    }
+    if(MANUALWATERFLAG){
+      
+    }
+  }
+  if(millis()-lastRecordMillis2>60000){//每分钟调用一次。
+  lastRecordMillis2=millis();
+  
+  }
+}
 ////////////////////////////////////////////
 
 ////////////////////////////////////////////
@@ -431,6 +493,7 @@ void setup() {
 }
 
 void loop() {
+  pbt->boilStateController();  
 /*
   pbt->mainBoardCommandReciver();
   for(int i =0;i<Serial.available();i++){
@@ -453,6 +516,6 @@ void loop() {
 
 void serialEvent(){
   //这个Arudino内置的函数会在每次loop函数后被调用（如果有新数据从RX脚写入）。在此暂时先搁置。
-  
+  pbt->mainBoardCommandReciver();
 }
 

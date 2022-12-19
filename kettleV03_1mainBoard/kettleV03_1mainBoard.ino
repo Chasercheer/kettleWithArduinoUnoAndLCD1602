@@ -856,11 +856,11 @@ int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int 
 
 void PushBtns::mainBoardCommandSender(String signal){
   while(!Serial);
-  if(signal[1] == '#'){
+  if(signal[0] == '#'){
     Serial.print(signal);
     Serial.flush();    
   }else{
-    switch(signal[1]){
+    switch(signal[0]){
       case 'W':
         signal+=String(addWaterLimHigh)+'@';
         Serial.print(signal);
@@ -888,6 +888,12 @@ void PushBtns::mainBoardCommandSender(String signal){
         break;
       case 'H':
         signal+=String(heatTemp)+'@';
+        Serial.print(signal);
+        Serial.flush();
+        break;
+      case 'T':
+        getTime();
+        signal+=String(getTimeBuffer.year)+'@'+String(getTimeBuffer.month)+'@'+String(getTimeBuffer.day)+'@'+String(getTimeBuffer.hour)+'@'+String(getTimeBuffer.minute)+'@'+String(getTimeBuffer.second)+'@'+String(getTimeBuffer.dow)+'@';
         Serial.print(signal);
         Serial.flush();
         break;
@@ -950,7 +956,10 @@ void PushBtns::AssisBoardDataReceiver(){
         lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:off");
         lcd1602.showMenuContentOnLcd(0, 6); 
         MANUALWATERFLAG=false;
-        break;     
+        break;
+      case 'T':
+        mainBoardCommandSender("T");
+        break;       
     }
   }else{
     switch(receiverCBuffer){
@@ -988,7 +997,8 @@ void PushBtns::AssisBoardDataReceiver(){
 PushBtns *pushBtns;
 void setup(){
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(9600);  
+  while (!Serial);
   pushBtns = new PushBtns(A0,A1,A2,A3,A4,8,5,4,3,2,6,7,11,9,10,0); 
   pushBtns->lcd1602.lcd.begin(16, 2);
   /*
