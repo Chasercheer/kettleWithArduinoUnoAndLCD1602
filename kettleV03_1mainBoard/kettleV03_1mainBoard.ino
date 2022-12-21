@@ -136,7 +136,7 @@ class PushBtns{
   LCD1602 lcd1602;
   Ds1302::DateTime getTimeBuffer,setTimeBuffer;//一个用来储存要设置的时间；一个用来储存从DS1302中读到的时间。值得注意的是，这个结构体内的数据成员的类型为uint_8，意为八位无符号整数，即这些数据成员的取值范围为0-255。用int为其赋值时可能会溢出。
   Ds1302 ds1302;
-  int bottleWeight,cycleGapDay,cycleClockHour,cycleClockMin,addWaterLimHigh,addWaterLimLow,heatSaveTemp,heatTemp;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
+  int cycleStartDay,cycleGapDay,cycleClockHour,cycleClockMin,addWaterLimHigh,addWaterLimLow,heatSaveTemp,heatTemp,bottleWeight;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
   int waterWeight,currentTemp;//这两个变量储存了工作时的实时水重与温度
   bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
   float currentWaterWeight,currentWaterTemp;  
@@ -197,7 +197,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   ////////////
   //waterWeight=EEPROM.read(0);//读取处于EEPROM中位置为0的数据。EEPROM中的位置是EEPROM中的地址的简化：一个位置代表这个内存中一个byte大小的内存区域，即相邻的8个bit所构成的一个储存区域。read可以读取该位置储存的一个字节；write则可以在该位置写入一个字节。但int值在Arduino中占两个字节，则如果将一个大于255的int或float值存入一个Btye位中将导致Arduino程序崩溃。
   //但是使用get()则可以在指定的位置作为起始，获得与实参2相同类型的的数据，这实参2的类型不作限制；并将数据存入传递的实参2内。同理，使用put(pos,val)函数可以将任意类型的val存入以int值pos为开始位置的相应大小的储存区域中，val不一定只用一个1个储存位置储存，可能是以pos为起始的，以及其后的多个位置作为其储存区域。另外，当一个位置未被储存数据时，其默认十进制值为255。
-  EEPROM.get(0,bottleWeight);//int占两个byte，所以会占用两个位置进行储存。所以，不能将上一个储存位置值加1来储存这个int值，而是需要加2。可用sizeof()判断其类型大小。
+  EEPROM.get(0,cycleStartDay);//int占两个byte，所以会占用两个位置进行储存。所以，不能将上一个储存位置值加1来储存这个int值，而是需要加2。可用sizeof()判断其类型大小。
   EEPROM.get(2,cycleGapDay);
   EEPROM.get(4,cycleClockHour);
   EEPROM.get(6,cycleClockMin);  
@@ -205,6 +205,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   EEPROM.get(10,addWaterLimLow);  
   EEPROM.get(12,heatSaveTemp);
   EEPROM.get(14,heatTemp);
+  EEPROM.get(16,bottleWeight);
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
   AUTOBOILFLAG=false;
@@ -240,7 +241,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   setTimeBuffer.second=getTimeBuffer.second;
   setTimeBuffer.dow=getTimeBuffer.dow; 
   ///////////////////////
-  EEPROM.get(0,bottleWeight);
+  EEPROM.get(0,cycleStartDay);
   EEPROM.get(2,cycleGapDay);
   EEPROM.get(4,cycleClockHour);
   EEPROM.get(6,cycleClockMin);  
@@ -248,6 +249,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   EEPROM.get(10,addWaterLimLow);  
   EEPROM.get(12,heatSaveTemp);
   EEPROM.get(14,heatTemp);
+  EEPROM.get(16,bottleWeight);
   SINGLEBOILFLAG=false;
   CYCLEBOILFLAG=false;
   AUTOBOILFLAG=false;
@@ -501,11 +503,17 @@ void PushBtns::selectEvents(){
           break;       
             
         case 2:
-        //CYCLEGAPDAY
+        //GAPDAY
+          lcd1602.showOnLCD("PLEASE SET","STARTDAYOFAWEEK:");
+          delay(1500);
+          cycleStartDay=numberChooseFunc(1,1,1,7);
+          lcd1602.showOnLCD("AND SET GAPDAY","BETWEEN BOIL:");
+          delay(1500);          
           cycleGapDay=numberChooseFunc(0,1,0,30); 
-          menuBuffer="CYCLEGAPDAY:"+String(cycleGapDay)+"DS";
+          menuBuffer="GAPDAY:WK"+String(cycleStartDay)+","+String(cycleGapDay)+"DS";
           lcd1602.m.ChangeALineInMenus(1,2,menuBuffer);
-          lcd1602.showMenuContentOnLcd(1, 2); 
+          lcd1602.showMenuContentOnLcd(1, 2);
+          EEPROM.put(0,cycleStartDay);           
           EEPROM.put(2,cycleGapDay);
           break;
         case 3:
@@ -551,7 +559,7 @@ void PushBtns::selectEvents(){
           menuBuffer="BOTTLEWEIGHT:"+String(bottleWeight)+"g";
           lcd1602.m.ChangeALineInMenus(1,6,menuBuffer);
           lcd1602.showMenuContentOnLcd(1, 6); 
-          EEPROM.put(0,bottleWeight);
+          EEPROM.put(16,bottleWeight);
           break;
         
         case 7:
@@ -867,7 +875,7 @@ void PushBtns::mainBoardCommandSender(String signal){
         Serial.flush();
         break;
       case 'C':
-        signal+=String(cycleGapDay)+'@';
+        signal+=String(cycleStartDay)+'@'+String(cycleGapDay)+'@';
         Serial.print(signal);
         Serial.flush();      
         break;
@@ -1011,7 +1019,7 @@ void setup(){
   //但很赞的是，Arduino的String类尽管与C++STL的string类有着诸多不同，但多行赋值的语法是相同的。HOORAY！！！
   pushBtns->lcd1602.m.menusAndTheirsContent =
   "*0 SHUTDOWN SINGLEBOIL:off CYCLEBOIL:off AUTOBOIL:off HEATSAVE:off HEAT:off MANUALWATER:off SET SETSYSTEMTIME \n"//原始菜单1内容
-  "*1 ADDWLIMHIGH: ADDWLIMLOW: CYCLEGAPDAY: CYCLECLOCK: HEATSAVETEMP: HEATTEMP: BOTTLEWEIGHT: WATERWIGHTNOW \n"//原始菜单2内容
+  "*1 ADDWLIMHIGH: ADDWLIMLOW: GAPDAY: CYCLECLOCK: HEATSAVETEMP: HEATTEMP: BOTTLEWEIGHT: WATERWIGHTNOW \n"//原始菜单2内容
   "*2 CHECKTIME SETYEAR: SETMONTH: SETDATE: SETHOUR: SETMINUTE: SETSECOND: SETWEEKDAY: APPLYCHANGE ";  //原始菜单3内容。作为最后一行，结尾需要加空格。否则最后一个菜单的最后一行无法被加载。
 
   //pushBtns->lcd1602.m.ChangeALineInMenus(1,0,String("SETWATERW:"+String(pushBtns->waterWeight)+"g"));//由于设置项中的一些数据是储存在EEPROM中的，所以此时把它们读取并加载出来以还原上次关机时的菜单设置

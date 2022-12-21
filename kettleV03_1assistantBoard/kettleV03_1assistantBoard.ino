@@ -171,10 +171,14 @@ class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEve
     SimpleMLX90614 mlx90614;
     HX711with5KgSensor hx711;
     Ds1302::DateTime TimeBuffer;//用以接收从主板来的ds1302的时间数据。
-    int tempSendBuffer,weightSendBuffer;//用于缓存传感器温度值或重量值,即当前温度与当前去皮水重。诚然，传感器温度值和重量值都可以是浮点值，但是这种精度在此不必要。
-    int bottleWeight,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;//这些变量将存入副板的EEPROM中
+    int currentWaterWeight,currentTemp;//用于缓存传感器温度值或重量值,即当前温度与当前去皮水重。诚然，传感器温度值和重量值都可以是浮点值，但是这种精度在此不必要。
+    int cycleStartDay,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp,bottleWeight;//这些变量将存入副板的EEPROM中
     bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//副板上各个烧水模式的状态标志
-    int lastRecordMillis1,lastRecordMillis2;//用于boilStateController()的计时。设置两个变量是为了使用两个不同的间隔周期去监视控制各个状态的运行。
+    bool CYCLEBOILONETIME,AUTOBOILONETIME;//这两个变量记录了周期烧水模式与自动续水烧水模式一次烧水的结束与否。
+    int lastRecordMillis1,lastRecordMillis2,lastRecordMillis3;//用于boilStateController()的计时。设置三个变量是为了使用三个不同的间隔周期去监视控制各个状态的运行。
+    int lastWaterWeight,failAddWaterTimes;//用于对自动加水的溢流保护。
+    bool isBoiled;//用于boilStateController()的烧水判断。
+    
     //int fanRunningTime;//用于调控风扇的运行时间--*暂置
 ////////////////////data↑///////////////////////
 
@@ -191,6 +195,8 @@ class PushBtnsButAssiatantBoard{//在副板上搭建一个PushBtnsBeTriggeredEve
 
 //--------------------------功能函数------------------------------   
     void boilStateController();//放在loop函数中，用以开启/关闭，监视，控制各个烧水模式的运行。
+    bool safeHeater();//具有自动判断当前温度从而决定是否该上水加热的底层烧水函数。它调用addWater()。    
+    bool addWater();//调用该函数则开始加水。该函数可以判断当前水量是否低于上水阈值并决定是否加水，并且还有防止水意外流出水壶的功能。当检测到水意外流出壶的时候返回false，否则返回true。
 //--------------------------------------------------------------- 
 };
 
@@ -201,7 +207,7 @@ PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater
   pinMode(pinBoil,OUTPUT);
   pinMode(pinAddWater,OUTPUT);
   pinMode(pinFan,OUTPUT);
-  EEPROM.get(0,bottleWeight);
+  EEPROM.get(0,cycleStartDay);
   hx711.weight_Maopi=bottleWeight;
   EEPROM.get(2,cycleGapDay);
   EEPROM.get(4,cycleClockHour);
@@ -210,12 +216,15 @@ PushBtnsButAssiatantBoard::PushBtnsButAssiatantBoard(int pinBoil,int pinAddWater
   EEPROM.get(10,addWaterLimLow);  
   EEPROM.get(12,heatSaveTemp);
   EEPROM.get(14,heatTemp);
+  EEPROM.get(16,bottleWeight);
+  failAddWaterTimes=0;
 }
+
 
 void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
   String receiverBuffer;
   char receiverCBuffer;
-  while(!Serial);
+  //while(!Serial) ;
   delay(50);//这是为确保在该函数被调用时副板能接收到主板的发送的（至少）一个的完整的数据包
   if(Serial.available()>0){
     receiverCBuffer=Serial.read();
@@ -233,6 +242,7 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
       case 's':
         //收到单次烧水模式结束指令
         SINGLEBOILFLAG=false;
+        AssisBoardDataSender("#S"); 
         break;
       case 'C':
         //收到周期定时烧水模式开始指令
@@ -295,7 +305,10 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
       case 'C':
       //接收周期烧水间隔日期
         receiverBuffer = Serial.readStringUntil('@');
+        cycleStartDay = receiverBuffer.toInt();
+        receiverBuffer = Serial.readStringUntil('@');
         cycleGapDay = receiverBuffer.toInt();
+        EEPROM.put(0,cycleStartDay);
         EEPROM.put(2,cycleGapDay);
         break;
       case 'c':
@@ -381,13 +394,13 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
           digitalWrite(pinFan,LOW);
           break;
         case 'G'://温度反馈
-          tempSendBuffer = mlx90614.readObjectTempC();
-          Serial.print(String('t'+tempSendBuffer));//Arduino的串口通讯并不能直接发送float数据。只能将其转为String发送，然后在接收端使用Serial.parseFloat()方法读取。但parseFlaot方法需要接受一个非Flaot字符来终止它对接收缓冲区的读取。这里用字符‘t’来分隔上一个发送的浮点数与该被发送的浮点数，顺便为主板收听函数提供判断数据应该储存在哪个变量里的依据。
+          currentTemp = mlx90614.readObjectTempC();
+          Serial.print(String('t'+currentTemp));//Arduino的串口通讯并不能直接发送float数据。只能将其转为String发送，然后在接收端使用Serial.parseFloat()方法读取。但parseFlaot方法需要接受一个非Flaot字符来终止它对接收缓冲区的读取。这里用字符‘t’来分隔上一个发送的浮点数与该被发送的浮点数，顺便为主板收听函数提供判断数据应该储存在哪个变量里的依据。
           Serial.flush();//等待信息从发送缓冲区全部发送完毕
           break;
         case 'H'://重量反馈
-          weightSendBuffer = hx711.get_Weight();
-          Serial.print('w'+String(weightSendBuffer));
+          currentWaterWeight = hx711.get_Weight();
+          Serial.print('w'+String(currentWaterWeight));
           Serial.flush();
           break;
       }
@@ -398,7 +411,7 @@ void PushBtnsButAssiatantBoard::mainBoardCommandReciver(){
 }
 
 void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
-  while(!Serial);
+  //while(!Serial);
   if(signal[0] == '#'){
     Serial.print(signal);
     Serial.flush();    
@@ -406,8 +419,8 @@ void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
     switch(signal[0]){
       case 'W':
       //发送当前去皮水重信号
-        weightSendBuffer = hx711.get_Weight();
-        signal+=String(weightSendBuffer)+'@';
+        currentWaterWeight = hx711.get_Weight();
+        signal+=String(currentWaterWeight)+'@';
         Serial.print(signal);
         Serial.flush();
         break;
@@ -421,8 +434,8 @@ void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
         break;
       case 't':
       //发送当前温度信号
-        tempSendBuffer = mlx90614.readObjectTempC();
-        signal+=String(tempSendBuffer)+'@';
+        currentTemp = mlx90614.readObjectTempC();
+        signal+=String(currentTemp)+'@';
         Serial.print(signal);
         Serial.flush();      
         break;
@@ -433,45 +446,119 @@ void PushBtnsButAssiatantBoard::AssisBoardDataSender(String signal){
 void PushBtnsButAssiatantBoard::boilStateController(){
   /*
   SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;
-  tempSendBuffer,weightSendBuffer;
+  currentTemp,currentWaterWeight;
   bottleWeight,addWaterLimHigh,addWaterLimLow,cycleGapDay,cycleClockHour,cycleClockMin,heatSaveTemp,heatTemp;
   TimeBuffer;
   lastRecordMillis1,lastRecordMillis2;
   */
   if(millis()-lastRecordMillis1>1000){//一秒检测一次各个功能的运行情况
     lastRecordMillis1=millis();    
-    tempSendBuffer = mlx90614.readObjectTempC();
-    weightSendBuffer = hx711.get_Weight();
-    if(SINGLEBOILFLAG){
-      if(tempSendBuffer>95){
-        digitalWrite(pinBoil,LOW);
-        digitalWrite(pinFan,HIGH);
-      }else{
-        digitalWrite(pinBoil,HIGH);
-        digitalWrite(pinFan,LOW);//这样做不确定温度传感器是否会出现因风扇吹风而降温，从而使风扇关闭，而后风扇关闭传感器检测温度升回去于是又打开风扇，不停反复的情况。在安装温度传感器与风扇的位置时要注意。
+    currentTemp = mlx90614.readObjectTempC();
+    currentWaterWeight = hx711.get_Weight();
+
+      if(SINGLEBOILFLAG){
+        if(currentTemp>95){
+          AssisBoardDataSender("#S");
+          SINGLEBOILFLAG=false;                
+        }else{
+          addWater();
+          digitalWrite(pinBoil,HIGH);
+        }
+      }
+      if(CYCLEBOILFLAG){
+        if((TimeBuffer.dow-cycleStartDay)%(cycleGapDay+1) == 0){
+          if(TimeBuffer.hour==cycleClockHour && TimeBuffer.minute==cycleClockMin){
+            if(!CYCLEBOILONETIME){
+              if(safeHeater()){
+                CYCLEBOILONETIME = true;
+                
+              }else{
+                AssisBoardDataSender("#c");//如果当前烧水失败（即已有足量开水），则返回烧水结束信号
+              }
+            }else{
+              if(currentTemp>95){
+                AssisBoardDataSender("#c");
+                CYCLEBOILONETIME = false;
+              }              
+            }
+          }          
+        }
+      }
+      if(AUTOBOILFLAG){
+        
+      }
+      if(HEATSAVEFLAG){
+        
+      }
+      if(HEATFLAG){
+        
       }
 
-    }
-    if(CYCLEBOILFLAG){
-      
-    }
-    if(AUTOBOILFLAG){
-      
-    }
-    if(HEATSAVEFLAG){
-      
-    }
-    if(HEATFLAG){
-      
-    }
     if(MANUALWATERFLAG){
-      
+        
     }
   }
-  if(millis()-lastRecordMillis2>60000){//每分钟调用一次。
-  lastRecordMillis2=millis();
-  
+  if(millis()-lastRecordMillis2>30000){//每三十秒调用一次。用于更新那些不需要每秒更新的数据。
+    lastRecordMillis2=millis();
+    AssisBoardDataSender("#T");//获取DS1302所记录的时间
   }
+  if(millis()-lastRecordMillis2>300000){//每五分钟调用一次。
+    failAddWaterTimes=0;//清空一下加水失败的次数
+  }
+}
+
+bool PushBtnsButAssiatantBoard::safeHeater(){
+  if(currentTemp>95 && currentWaterWeight>addWaterLimLow){//保护性检查。避免在壶中有水且水烧开的情况下还有模式要求烧水。isBoiled会屏蔽各个模式。
+    digitalWrite(pinBoil,LOW);
+    digitalWrite(pinFan,HIGH);
+    return false;
+  }else if(currentTemp>95){//如果壶的温度很高但是里面没水，这时候便停止关闭电陶炉并解除对各个烧水类模式的屏蔽。烧水类模式有：单次烧水，周期烧水，自动续水烧水，保温模式，加热模式。非烧水类模式：手动加水模式
+    digitalWrite(pinFan,HIGH);
+    addWater();
+    digitalWrite(pinBoil,HIGH);      
+    return true;
+  }else if(currentTemp<95 && currentTemp >= 60){
+    addWater();
+    digitalWrite(pinBoil,HIGH);      
+    return true;
+  }else if(currentTemp<60){//如果温度降至设定温度下则关闭风扇。
+    digitalWrite(pinFan,LOW);
+    addWater();
+    digitalWrite(pinBoil,HIGH);
+    return true;
+  }else{
+    return false;
+  }
+}
+
+bool PushBtnsButAssiatantBoard::addWater(){
+  while(currentWaterWeight<addWaterLimLow){
+  lastWaterWeight=currentWaterWeight;
+  digitalWrite(pinAddWater,HIGH);
+  currentWaterWeight=hx711.get_Weight();
+  delay(1000);
+    if(currentWaterWeight-lastWaterWeight<50){//如果一秒后现水重比之前水重增加不超过50g（这个阈值可以后续修改），则可判断水已外溢，即停止加水，并使程序进入5秒钟的阻塞。
+      ++failAddWaterTimes;//增加一次加水失败的次数
+      digitalWrite(pinAddWater,LOW);
+      if(failAddWaterTimes==3){//如果失败次数达到三次，则关闭除了手动上水以外的所有模式
+        SINGLEBOILFLAG=false;
+        AssisBoardDataSender("#S");
+        CYCLEBOILFLAG=false;
+        AssisBoardDataSender("#C");
+        AUTOBOILFLAG=false;
+        AssisBoardDataSender("#A");
+        HEATSAVEFLAG=false;
+        AssisBoardDataSender("#E");
+        HEATFLAG=false;
+        AssisBoardDataSender("#H");
+        failAddWaterTimes=0;
+      }
+      delay(5000);//程序进入5秒阻塞
+      return false;  //使用return代替break来结束while循环          
+    }
+
+  } 
+  return true;//当正常执行完加水流程后返回true  
 }
 ////////////////////////////////////////////
 
@@ -479,10 +566,10 @@ void PushBtnsButAssiatantBoard::boilStateController(){
 
 PushBtnsButAssiatantBoard *pbt ;
 void setup() {
-  pbt = new PushBtnsButAssiatantBoard(4,5,6);
   Serial.begin(9600);
-  
   while (!Serial);
+  pbt = new PushBtnsButAssiatantBoard(4,5,6);
+  
 /*
   while(!mlx.begin(0x5A)) {
     Serial.print("Error connecting to MLX sensor. Check wiring.");
@@ -517,5 +604,6 @@ void loop() {
 void serialEvent(){
   //这个Arudino内置的函数会在每次loop函数后被调用（如果有新数据从RX脚写入）。在此暂时先搁置。
   pbt->mainBoardCommandReciver();
+  
 }
 
