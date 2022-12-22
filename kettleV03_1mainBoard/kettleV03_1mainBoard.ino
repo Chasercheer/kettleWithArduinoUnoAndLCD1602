@@ -139,7 +139,8 @@ class PushBtns{
   int cycleStartDay,cycleGapDay,cycleClockHour,cycleClockMin,addWaterLimHigh,addWaterLimLow,heatSaveTemp,heatTemp,bottleWeight;//这些是要写入EEPROM的数据。它们在开机时从EEPROM读取数据，每当修改时将修改上传至EEPROM。另注：在ARduino中byte数据的储存只需要1btye，而int和short一样需要2byte。但使用byte数据似乎需要再加载一个Arduino自己的库，所以如果是少量的数据使用Byte反而比int占空间。int可以赋值给byte，但值可能会溢出并且造成错误。
   int waterWeight,currentTemp;//这两个变量储存了工作时的实时水重与温度
   bool SINGLEBOILFLAG,CYCLEBOILFLAG,AUTOBOILFLAG,HEATSAVEFLAG,HEATFLAG,MANUALWATERFLAG;//设置LCD菜单行上显示相对应功能开关状态的FLAG
-  float currentWaterWeight,currentWaterTemp;  
+  float currentWaterWeight,currentWaterTemp;
+  bool waterError;//上水故障标志  
   //bool stateHeat,stateAddWater,stateFan;//这三个是具体表示当前烧水壶实际工作状态的变量
   int up,down,quit,select,onAndOff,onAndOffFlag,backLight;//储存各按钮所对应的开发板的引脚号的变量。其中backLinght是控制LCD1602的背光亮度的。它可接在LCD1602的背光正极引脚上，也可接在背光负极引脚上。原理是，当背光正极与负极之间的电压接近O时，背光亮度也接近于无；当正极到负极的电压为5V时，亮度最大。
   enum {triggeredLevelOfUp=LOW,triggeredLevelOfDown=LOW,triggeredLevelOfQuit=LOW,triggeredLevelOfSelect=LOW,triggeredLevelOfOnAndOff=LOW};
@@ -212,6 +213,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   HEATSAVEFLAG=false;
   HEATFLAG=false;
   MANUALWATERFLAG=false;
+  waterError = false;
   this->up=up;//使用this指针可以在方法中使用来自对象的与类形参变量同名的数据成员
   this->down=down;
   this->quit=quit;
@@ -256,6 +258,7 @@ PushBtns::PushBtns(int up,int down,int quit,int select,int onAndOff,int backLigh
   HEATSAVEFLAG=false;
   HEATFLAG=false;
   MANUALWATERFLAG=false;
+  waterError = false;
   this->up=up;
   this->down=down;
   this->quit=quit;
@@ -402,13 +405,15 @@ void PushBtns::selectEvents(){
           }
           break;
         case 6:
-        //MANUALWATER
-          if(MANUALWATERFLAG){
+        //MANUALWATER——————暂时不需要软件控制手动上水了。因为手动上水的按钮直接与副板连接，副板需要向主板报告手动上水的状态，但启动手动上水与停止手动上水则是用户控制实体按钮的事情了。
+        
+        //if(MANUALWATERFLAG){
             /*
             lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:off");
             lcd1602.showMenuContentOnLcd(0, 6); 
             MANUALWATERFLAG=false;
             */
+        /*
             mainBoardCommandSender("#m");
           }else{
             lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:on");
@@ -416,6 +421,7 @@ void PushBtns::selectEvents(){
             MANUALWATERFLAG=true;
             mainBoardCommandSender("#M");          
           }
+        */
           break;          
         case 7:
         //SET
@@ -546,7 +552,7 @@ void PushBtns::selectEvents(){
         
         case 5:
         //HEATTEMP
-          heatTemp=numberChooseFunc(65,1,40,90); 
+          heatTemp=numberChooseFunc(65,1,40,90);//加热温度最低四十度，最高九十度 
           menuBuffer="HEATTEMP:"+String(heatTemp)+"C";
           lcd1602.m.ChangeALineInMenus(1,5,menuBuffer);
           lcd1602.showMenuContentOnLcd(1, 5); 
@@ -938,7 +944,7 @@ void PushBtns::AssisBoardDataReceiver(){
       case 'c':
         lcd1602.showOnLCD("CYCLE BOIL","DONE ONE TIME");
         delay(2000);
-        lcd1602.showMenuContentOnLcd(lcd1602.menuIndexOfCurrentScreen,lcd1602.firstLineNumOfCurrentScreen);
+        lcd1602.showMenuContentOnLcd(lcd1602.menuIndexOfCurrentScreen,lcd1602.firstLineNumOfCurrentScreen);//返回当前所在菜单行
         break;
       case 'A':
         lcd1602.m.ChangeALineInMenus(0,3,"AUTOBOIL:off");
@@ -961,13 +967,42 @@ void PushBtns::AssisBoardDataReceiver(){
         HEATFLAG=false;
         break; 
       case 'M':
+        lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:on");
+        lcd1602.showMenuContentOnLcd(0, 6); 
+        MANUALWATERFLAG=true;
+        break;
+      case 'm':
         lcd1602.m.ChangeALineInMenus(0,6,"MANUALWATER:off");
         lcd1602.showMenuContentOnLcd(0, 6); 
         MANUALWATERFLAG=false;
-        break;
+        break;        
       case 'T':
         mainBoardCommandSender("T");
-        break;       
+        break;
+      case 'Z':
+        waterError = true;
+        while(waterError){
+          lcd1602.showOnLCD("ADD WATER ERROR","SYSTEM LOCKED");
+          delay(2000);
+          lcd1602.showOnLCD("PLEASE PRESS","SELECT FOR SECONDS");
+          delay(2000);
+          lcd1602.showOnLCD("TO UNLOCK","AFTER THIS TEXT");
+          delay(2000);
+          if(digitalRead(select)==triggeredLevelOfSelect){
+            delay(100);//去抖动
+          } 
+          if(digitalRead(select)==triggeredLevelOfSelect){
+          lcd1602.showOnLCD("SYSTEM UNLOCKED","YOU CAN RELEASE");
+          delay(2000);
+          lcd1602.showOnLCD("SELECT BUTTON","NOW");
+          delay(2000);
+          lcd1602.showMenuContentOnLcd(lcd1602.menuIndexOfCurrentScreen,lcd1602.firstLineNumOfCurrentScreen);
+          mainBoardCommandSender("#Z");
+          waterError = false;
+          break;          
+          }           
+        }
+        break;
     }
   }else{
     switch(receiverCBuffer){
