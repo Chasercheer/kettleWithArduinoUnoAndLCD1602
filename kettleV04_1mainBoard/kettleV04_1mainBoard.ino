@@ -5,7 +5,9 @@
 //使用HardwareSerial类中的Serial系列方式，在UNO的TXRX口上进行UART（异步串行通讯接口，一般称为“串口”）通讯。主板与副班之间的Serial通讯代码的实现与一个板子同计算机的通讯类似，皆使用Serial的系列方法。
 //主板与副板之间的通讯一共有四个函数：1，来自主板的开始/停止烧水指令；2，来自主板的开始/停止加水指令；3,来自主板的开始/停止风扇指令；4,来自主板的获取温度反馈指令；5，来自主板的获取重量反馈指令；6，来自副板的重量反馈以及来自副板的温度反馈。来自主板的指令信号使用单个char字符表示；来自副板的每一条反馈数据均使用一个特定char‘@’字符结尾，前跟一个要传输的float型数据。
 
-//未完成：验证主板与副板的指令传递与反馈数据是否正确
+
+
+
 
 ////////////////////////////////////////////////////////////////////
 class AllMenus {
@@ -168,12 +170,7 @@ class PushBtns{
   void setTime();   
   void setTime(int year,int month,int day,int hour,int min,int sec,int dow);
   void getTime();
-  void startOrStopBoilWater(bool flag);
-  void startOrStopAddWater(bool flag);
-  void startOrStopFan(bool flag);
   int numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode=-1);//数值选择事件，调用则出现一个临时菜单以供选择数值，返回值为其选择的数值。临时菜单在选择结束后会自动关闭且恢复之前的菜单页面。他接受一个初始值，一个步长，一个选择值上限值，一个选择值下限，一个未选择便退出时的标识值作为参数。    
-  float callTempFeedback();
-  float callWeightFeedback();
   void mainBoardCommandSender(String signal);//需要时调用，signal用来指出发送什么数据。
 //-------------------------------------------------------------------
 
@@ -744,90 +741,7 @@ void PushBtns::getTime(){
   ds1302.getDateTime(&getTimeBuffer);  
 }
 
-void PushBtns::startOrStopBoilWater(bool flag){
-  while(!Serial){//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
 
-  }
-  callTempFeedback();
-  if(currentWaterTemp<100){
-    if(flag){//开始烧水
-    
-    Serial.write('A');
-    Serial.flush();
-    }else{//停止烧水
-    Serial.write('B');
-    Serial.flush();
-    }
-  }
-}
-void PushBtns::startOrStopAddWater(bool flag){
-  while(!Serial);//判断串口是否准备好通讯了。当串口未连接（如未使用SERIAL.BEGIN或使用SERIAL.END关闭串口后）时，Serial返回False
-  callWeightFeedback();
-  if(currentWaterWeight<addWaterLimHigh){
-    if(flag){//开始加水
-      Serial.write('C');
-      Serial.flush();//程序运行至该函数，会进入等待知道所有要通过串口发送出去的数据被发送，才会从该函数返回并运行下一句。
-    }else{//停止加水
-      Serial.write('D');
-      Serial.flush();
-    }    
-  }
-
-/*
-  while(Serial.available()>0){
-    Serial.read();
-  }
-  delay(100);
-  while(Serial.available()>0){
-    char a = Serial.read();
-
-  }
-  while(Serial.available()>0){
-    Serial.read();//再次清空输出
-  }
-*/
-}
-
-void PushBtns::startOrStopFan(bool flag){
-  while(!Serial);
-  callTempFeedback();
-  if(currentWaterTemp>70){
-    if(flag){//开启风扇
-      Serial.write('E');
-      Serial.flush();
-    }else{//停止风扇
-      Serial.write('F');
-      Serial.flush();
-    }
-  }
-}
-
-float PushBtns::callTempFeedback(){
-  while(!Serial);
-  while(Serial.available()>0){
-    Serial.read();//read会从串口输入寄存器里按顺序取出（即返回）一个输入进来的字符，并且将这个字符从串口输入寄存器里删除。这里做的目的是用其清空串口输入寄存器。
-  }
-  Serial.write('G');
-  delay(50);//在主板送出指令后副板接收到指令；当副版成功获取指令时会向主板反馈一个信息，这个信息需要被主板及时读取。所以等待100ms，以使副板有足够的时间发送回馈信息。
-  currentWaterTemp = Serial.parseFloat();
-  while(Serial.available()>0){
-    Serial.read();//再次清空串口输入寄存器
-  }
-  return currentWaterTemp;
-}
-float PushBtns::callWeightFeedback(){
-  while(!Serial);  
-  while(Serial.available()>0){
-    Serial.read();
-  }
-  Serial.write('H');
-  delay(50);
-  currentWaterWeight = Serial.parseFloat();
-  while(Serial.available()>0){
-  Serial.read();
-  }
-  return currentWaterWeight;
-}
 
 
 int PushBtns::numberChooseFunc(int start,int step,int lowerlim,int upperlim,int quitCode){
